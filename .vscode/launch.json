@@ -50,7 +50,7 @@
             "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
             "outFiles": ["${workspaceFolder}/dist/**/*.js"],
             "env": {
-                "USE_DEBUGPY": "True"
+                "USE_DEBUGPY": "False"
             },
             "presentation": {
                 "hidden": true,

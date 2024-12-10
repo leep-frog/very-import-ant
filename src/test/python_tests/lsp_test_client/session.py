@@ -146,6 +146,11 @@ class LspSession(MethodDispatcher):
         fut = self._send_request("textDocument/formatting", params=formatting_params)
         return fut.result()
 
+    def text_document_on_type_formatting(self, on_type_formatting_params):
+        """Sends text document references request to LSP server."""
+        fut = self._send_request("textDocument/onTypeFormatting", params=on_type_formatting_params)
+        return fut.result()
+
     def text_document_code_action(self, code_action_params):
         """Sends text document code actions request to LSP server."""
         fut = self._send_request("textDocument/codeAction", params=code_action_params)
