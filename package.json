@@ -1,8 +1,8 @@
 {
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
-  "description": "Linting support for python files using `very-import-ant`.",
-  "version": "0.0.1",
+  "description": "Automatically add Python import statements",
+  "version": "0.0.2",
   "preview": true,
   "serverInfo": {
     "name": "Very Import-ant",
@@ -68,6 +68,43 @@
   "contributes": {
     "configuration": {
       "properties": {
+
+        "very-import-ant.autoImports": {
+          "default": [
+            {
+              "variable": "pd",
+              "import": "import pandas as pd"
+            },
+            {
+              "variable": "np",
+              "import": "import numpy as np"
+            },
+            {
+              "variable": "xr",
+              "import": "import xarray as xr"
+            },
+            {
+              "variable": "xrt",
+              "import": "from xarray import testing as xrt"
+            }
+          ],
+          "description": "The set of auto-imports to consider when formatting a python file",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "variable": {
+                "description": "Name of the variable which, when undefined in a python file, will trigger an auto-import",
+                "type": "string"
+              },
+              "import": {
+                "description": "The import statement to be included when the associated variable is undefined in a python file",
+                "type": "string"
+              }
+            }
+          }
+        },
+
         "very-import-ant.args": {
           "default": [],
           "description": "Arguments passed in. Each argument is a separate item in the array.",

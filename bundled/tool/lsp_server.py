@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+from collections import defaultdict
 import json
 import os
 import pathlib
@@ -185,6 +186,24 @@ def _get_global_defaults():
         "args": GLOBAL_SETTINGS.get("args", []),
         "importStrategy": GLOBAL_SETTINGS.get("importStrategy", "useBundled"),
         "showNotifications": GLOBAL_SETTINGS.get("showNotifications", "off"),
+        "autoImports": GLOBAL_SETTINGS.get("autoImports", [
+            {
+                "variable": "pd",
+                "import": "import pandas as pd"
+            },
+            {
+                "variable": "np",
+                "import": "import numpy as np"
+            },
+            {
+                "variable": "xr",
+                "import": "import xarray as xr"
+            },
+            {
+                "variable": "xrt",
+                "import": "from xarray import testing as xrt"
+            },
+        ]),
     }
 
 
@@ -257,12 +276,6 @@ def _get_settings_by_document(document: workspace.Document | None):
 # Internal execution APIs.
 # *****************************************************
 
-# TODO: get these from settings
-aliases = {
-    "pd": "import pandas as pd",
-    "np": "import numpy as np",
-}
-
 def _execute_tool(document: workspace.Document):
 
     # NOTE: For formatting on save support the formatter you use must support
@@ -280,6 +293,21 @@ def _execute_tool(document: workspace.Document):
           "--isolated",
         ])
 
+    # deep copy here to prevent accidentally updating global settings.
+    settings = copy.deepcopy(_get_settings_by_document(document))
+
+    log_to_output(f"GOT SETTINGS: {settings}")
+
+    import_aliases = defaultdict(list)
+    for auto_import in settings["autoImports"]:
+        if "variable" not in auto_import or "import" not in auto_import:
+            log_error(f"Invalid autoImport entry: {auto_import}")
+            continue
+
+        import_aliases[auto_import["variable"]].append(f'"{auto_import["import"]}"')
+
+    log_to_output(f"Using import aliases: {import_aliases}")
+
     pattern = re.compile(r":[0-9]+:[0-9]+: F821 Undefined name `(.*)`$")
 
     add_imports = set()
@@ -290,11 +318,11 @@ def _execute_tool(document: workspace.Document):
             continue
 
         name = m.group(1)
-        log_to_output(f"Match: {m}; name: {name}; as {aliases}")
-        if name not in aliases:
+        log_to_output(f"Match: {m}; name: {name}")
+        if name not in import_aliases:
             continue
 
-        add_imports.add(f'"{aliases[name]}"')
+        add_imports = add_imports.union(import_aliases[name])
 
     add_imports_text = ",\n  ".join(sorted(list(add_imports)))
 

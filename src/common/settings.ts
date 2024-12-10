@@ -69,6 +69,8 @@ export async function getWorkspaceSettings(
         interpreter: resolveVariables(interpreter, workspace),
         importStrategy: config.get<string>(`importStrategy`) ?? 'useBundled',
         showNotifications: config.get<string>(`showNotifications`) ?? 'off',
+        // Actual defaults are set in lsp_server code
+        autoImports: config.get<string>(`autoImports`) ?? [],
     };
     return workspaceSetting;
 }
@@ -108,6 +110,7 @@ export function checkIfConfigurationChanged(e: ConfigurationChangeEvent, namespa
         `${namespace}.interpreter`,
         `${namespace}.importStrategy`,
         `${namespace}.showNotifications`,
+        `${namespace}.autoImports`,
     ];
     const changed = settings.map((s) => e.affectsConfiguration(s));
     return changed.includes(true);
