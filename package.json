@@ -2,7 +2,7 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "Linting support for python files using `very-import-ant`.",
-  "version": "2022.0.0-dev",
+  "version": "0.0.1",
   "preview": true,
   "serverInfo": {
     "name": "Very Import-ant",
