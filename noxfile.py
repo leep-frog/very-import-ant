@@ -95,20 +95,20 @@ def _setup_template_environment(session: nox.Session) -> None:
     _install_bundle(session)
 
 
-@nox.session()
+@nox.session(python="3.8")
 def setup(session: nox.Session) -> None:
     """Sets up the template for development."""
     _setup_template_environment(session)
 
 
-@nox.session()
+@nox.session(python="3.8")
 def tests(session: nox.Session) -> None:
     """Runs all the tests for the extension."""
     session.install("-r", "src/test/python_tests/requirements.txt")
     session.run("pytest", "src/test/python_tests")
 
 
-@nox.session()
+@nox.session(python="3.8")
 def lint(session: nox.Session) -> None:
     """Runs linter and formatter checks on python files."""
     session.install("-r", "./requirements.txt")
@@ -141,7 +141,7 @@ def lint(session: nox.Session) -> None:
     session.run("npm", "run", "lint", external=True)
 
 
-@nox.session()
+@nox.session(python="3.8")
 def build_package(session: nox.Session) -> None:
     """Builds VSIX package for publishing."""
     _check_files(["README.md", "LICENSE", "SUPPORT.md"])
@@ -150,7 +150,7 @@ def build_package(session: nox.Session) -> None:
     session.run("npm", "run", "vsce-package", external=True)
 
 
-@nox.session()
+@nox.session(python="3.8")
 def update_packages(session: nox.Session) -> None:
     """Update pip and npm packages."""
     session.install("wheel", "pip-tools")
