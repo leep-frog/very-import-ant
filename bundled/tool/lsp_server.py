@@ -4,16 +4,17 @@
 from __future__ import annotations
 
 import copy
-from collections import defaultdict
+import io
 import json
 import os
 import pathlib
 import re
 import sys
-import sysconfig
 import traceback
-from typing import Any, Optional, Sequence
-import tempfile
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Sequence
+
+import isort
 
 
 # **********************************************************
@@ -277,29 +278,66 @@ def _get_settings_by_document(document: workspace.Document | None):
 # Internal execution APIs.
 # *****************************************************
 
+pylint_err_pattern = re.compile(r"^Undefined variable '(.+)'$")
+# ruff_err_pattern = re.compile(r":[0-9]+:[0-9]+: F821 Undefined name `(.*)`$")
+
 def _execute_tool(document: workspace.Document):
 
     # NOTE: For formatting on save support the formatter you use must support
     # formatting via stdin.
+    add_imports = _generate_required_imports(document)
 
+    str_input = utils.CustomIO("<stdin>", encoding="utf-8", newline="\n")
+    try:
+        with utils.redirect_io("stdin", str_input):
+            str_input.write(document.source)
+            str_input.seek(0)
+            with io.StringIO() as s:
+                isort.stream(input_stream=str_input, output_stream=s, file_path=pathlib.Path(document.path), config=isort.Config(
+                    add_imports=add_imports,
+                ))
+                return utils.RunResult(stdout=s.getvalue(), stderr="")
+    except:
+        log_to_output(traceback.format_exc())
+        raise
+
+
+def _generate_required_imports(document: workspace.Document) -> List[str]:
     # Find all undefined variables
-    log_to_output("PRE")
-    lint_result = _run_tool_on_document(
-        document,
+    # TODO: Improve the speed of this (possibly by using flake8, ruff, or another linter?)
+    log_to_output(f"Start - pylint")
+    lint_result = utils.run_module(
+        module="pylint",
+        argv=["pylint", "--output-format=json", "--disable=all", "--enable=E0602", "--from-stdin", "flicker.py"],
         use_stdin=True,
-        extra_args=[
-          "check",
-          "--no-fix",
-          "--select",
-          "F821",
-          "--isolated",
-        ])
+        cwd=".", # TODO: update this
+        source=document.source,
+    )
+    log_to_output(f"End - pylint")
 
-    log_to_output(f"GOT LINT RESULT {lint_result}")
+    errs = json.loads(lint_result.stdout)
+    log_to_output(f"Got pylint result: {lint_result.stdout}")
 
+    import_aliases = _get_alias_map(document)
+
+    add_imports = set()
+    for err in errs:
+        m = pylint_err_pattern.search(err["message"])
+        if not m:
+            continue
+
+        name = m.group(1)
+        if name not in import_aliases:
+            continue
+
+        add_imports = add_imports.union(import_aliases[name])
+
+    log_to_output(f"Adding imports: {add_imports}")
+    return add_imports
+
+
+def _get_alias_map(document: workspace.Document) -> Dict[str, List[str]]:
     settings = _get_settings_by_document(document)
-
-    log_to_output(f"GOT SETTINGS: {settings}")
 
     import_aliases = defaultdict(list)
     for auto_import in settings["autoImports"]:
@@ -307,55 +345,9 @@ def _execute_tool(document: workspace.Document):
             log_error(f"Invalid autoImport entry: {auto_import}")
             continue
 
-        import_aliases[auto_import["variable"]].append(f'"{auto_import["import"]}"')
+        import_aliases[auto_import["variable"]].append(auto_import["import"])
 
-    log_to_output(f"Using import aliases: {import_aliases}")
-
-    pattern = re.compile(r":[0-9]+:[0-9]+: F821 Undefined name `(.*)`$")
-
-    add_imports = set()
-
-    for line in lint_result.stdout.splitlines():
-        m = pattern.search(line)
-        if not m:
-            continue
-
-        name = m.group(1)
-        log_to_output(f"Match: {m}; name: {name}")
-        if name not in import_aliases:
-            continue
-
-        add_imports = add_imports.union(import_aliases[name])
-
-    add_imports_text = ",\n  ".join(sorted(list(add_imports)))
-
-    log_to_output(f"Found imports: {add_imports_text}")
-
-    # Create a config to require those imports
-    config_contents = "\n".join([
-      '[lint.isort]',
-      f'required-imports = [{add_imports_text}',
-      ']',
-      'combine-as-imports = true',
-    ])
-
-    # Run the tool again, but make appropriate fixes
-    with tempfile.NamedTemporaryFile(prefix="very-import-ant-", suffix=".toml") as config_file:
-
-      # Write the config file, and move the cursor back to the beginning of the file
-      config_file.write(config_contents.encode())
-      config_file.seek(0)
-
-      return _run_tool_on_document(
-          document,
-          use_stdin=True,
-          extra_args=[
-            "check",
-            "--select", "I",
-            "--fix",
-            "--config", config_file.name,
-            "-q",
-          ])
+    return import_aliases
 
 
 def _run_tool_on_document(
@@ -369,7 +361,6 @@ def _run_tool_on_document(
     tool via stdin.
     """
 
-    log_to_output("BREAK 1")
     if extra_args is None:
         extra_args = []
     if str(document.uri).startswith("vscode-notebook-cell"):
@@ -383,7 +374,6 @@ def _run_tool_on_document(
         log_to_output("Auto-formatting stdlib files is not supported")
         return None
 
-    log_to_output("BREAK 2")
 
     settings = _get_settings_by_document(document)
 
@@ -392,7 +382,6 @@ def _run_tool_on_document(
 
     use_path = False
     use_rpc = False
-    log_to_output("BREAK 3")
     if settings["interpreter"] and not utils.is_current_interpreter(
         settings["interpreter"][0]
     ):
@@ -401,7 +390,6 @@ def _run_tool_on_document(
         argv = [TOOL_MODULE]
         use_rpc = True
     else:
-        log_to_output("BREAK 4")
         # if the interpreter is same as the interpreter running this
         # process then run as module.
         # argv = [TOOL_MODULE]
@@ -426,7 +414,6 @@ def _run_tool_on_document(
     else:
         argv += [document.path]
 
-    log_to_output("BREAK 5")
     if use_path:
         # This mode is used when running executables.
         log_to_output(" ".join(argv))
@@ -485,7 +472,6 @@ def _run_tool_on_document(
         if result.stderr:
             log_to_output(result.stderr)
 
-    log_to_output("BREAK 6")
     log_to_output(f"{document.uri} :\r\n{result.stdout}")
     return result
 

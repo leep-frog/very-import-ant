@@ -12,4 +12,6 @@
 pygls
 packaging
 
-ruff
+# ruff
+pylint
+isort
