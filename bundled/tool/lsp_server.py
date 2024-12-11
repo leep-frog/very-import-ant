@@ -410,9 +410,11 @@ def _run_tool_on_document(
         # the above line was commented out and replaced with the below
         # which uses the use_path flow
         use_path = True
+        from ruff.__main__ import find_ruff_bin
+        ruff_bin_path = os.fsdecode(find_ruff_bin())
+        log_to_output(f"Using ruff binary path: {ruff_bin_path}")
         argv = [
-            # TODO: look for ruff or ruff.exe depending on OS
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), "libs", "bin", "ruff.exe")
+            ruff_bin_path,
         ]
 
     argv += TOOL_ARGS + extra_args
