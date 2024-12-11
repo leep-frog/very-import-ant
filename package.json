@@ -2,7 +2,8 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "Automatically add Python import statements",
-  "version": "0.0.2",
+  "icon": "logo.png",
+  "version": "0.0.3",
   "preview": true,
   "serverInfo": {
     "name": "Very Import-ant",
