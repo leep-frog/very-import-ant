@@ -19,19 +19,15 @@ import tempfile
 # **********************************************************
 # Update sys.path before importing any bundled libraries.
 # **********************************************************
-def update_sys_path(path_to_add: str, strategy: str) -> None:
+def update_sys_path(path_to_add: str) -> None:
     """Add given path to `sys.path`."""
     if path_to_add not in sys.path and os.path.isdir(path_to_add):
-        if strategy == "useBundled":
-            sys.path.insert(0, path_to_add)
-        elif strategy == "fromEnvironment":
-            sys.path.append(path_to_add)
+        sys.path.insert(0, path_to_add)
 
 
 # Ensure that we can import LSP libraries, and other bundled libraries.
 update_sys_path(
     os.fspath(pathlib.Path(__file__).parent.parent / "libs"),
-    os.getenv("LS_IMPORT_STRATEGY", "useBundled"),
 )
 
 # **********************************************************
@@ -180,10 +176,7 @@ def on_shutdown(_params: Optional[Any] = None) -> None:
 
 def _get_global_defaults():
     return {
-        "path": GLOBAL_SETTINGS.get("path", []),
         "interpreter": GLOBAL_SETTINGS.get("interpreter", [sys.executable]),
-        "args": GLOBAL_SETTINGS.get("args", []),
-        "importStrategy": GLOBAL_SETTINGS.get("importStrategy", "useBundled"),
         "showNotifications": GLOBAL_SETTINGS.get("showNotifications", "off"),
         "autoImports": GLOBAL_SETTINGS.get("autoImports", [
             {
@@ -390,11 +383,7 @@ def _run_tool_on_document(
 
     use_path = False
     use_rpc = False
-    if settings["path"]:
-        # 'path' setting takes priority over everything.
-        use_path = True
-        argv = settings["path"]
-    elif settings["interpreter"] and not utils.is_current_interpreter(
+    if settings["interpreter"] and not utils.is_current_interpreter(
         settings["interpreter"][0]
     ):
         # If there is a different interpreter set use JSON-RPC to the subprocess
@@ -415,7 +404,7 @@ def _run_tool_on_document(
             os.path.join(os.path.dirname(os.path.dirname(__file__)), "libs", "bin", "ruff.exe")
         ]
 
-    argv += TOOL_ARGS + settings["args"] + extra_args
+    argv += TOOL_ARGS + extra_args
 
     if use_stdin:
         argv += [
@@ -495,11 +484,7 @@ def _run_tool(extra_args: Sequence[str]) -> utils.RunResult:
 
     use_path = False
     use_rpc = False
-    if len(settings["path"]) > 0:
-        # 'path' setting takes priority over everything.
-        use_path = True
-        argv = settings["path"]
-    elif len(settings["interpreter"]) > 0 and not utils.is_current_interpreter(
+    if len(settings["interpreter"]) > 0 and not utils.is_current_interpreter(
         settings["interpreter"][0]
     ):
         # If there is a different interpreter set use JSON-RPC to the subprocess

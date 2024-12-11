@@ -39,12 +39,10 @@ async function createServer(
         newEnv.USE_DEBUGPY = 'False';
     }
 
-    // Set import strategy
-    newEnv.LS_IMPORT_STRATEGY = settings.importStrategy;
-
     // Set notification type
     newEnv.LS_SHOW_NOTIFICATION = settings.showNotifications;
 
+    // Set format.onType trigger characters
     newEnv.LS_ON_TYPE_TRIGGER_CHARACTERS = settings.onTypeTriggerCharacters;
 
     const args =

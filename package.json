@@ -111,38 +111,6 @@
           }
         },
 
-        "very-import-ant.args": {
-          "default": [],
-          "description": "Arguments passed in. Each argument is a separate item in the array.",
-          "items": {
-            "type": "string"
-          },
-          "scope": "resource",
-          "type": "array"
-        },
-        "very-import-ant.path": {
-          "default": [],
-          "description": "When set to a path to very-import-ant binary, extension will use that. NOTE: Using this option may slowdown server response time.",
-          "scope": "resource",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "very-import-ant.importStrategy": {
-          "default": "useBundled",
-          "description": "Defines where `very-import-ant` is imported from. This setting may be ignored if `very-import-ant.path` is set.",
-          "enum": [
-            "useBundled",
-            "fromEnvironment"
-          ],
-          "enumDescriptions": [
-            "Always use the bundled version of `very-import-ant`.",
-            "Use `very-import-ant` from environment, fallback to bundled version only if `very-import-ant` not available in the environment."
-          ],
-          "scope": "window",
-          "type": "string"
-        },
         "very-import-ant.interpreter": {
           "default": [],
           "description": "When set to a path to python executable, extension will use that to launch the server and any subprocess.",
