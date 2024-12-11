@@ -14,8 +14,6 @@ import traceback
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Sequence
 
-from bundled.libs import isort
-
 
 # **********************************************************
 # Update sys.path before importing any bundled libraries.
@@ -30,6 +28,8 @@ def update_sys_path(path_to_add: str) -> None:
 update_sys_path(
     os.fspath(pathlib.Path(__file__).parent.parent / "libs"),
 )
+
+import isort
 
 # **********************************************************
 # Imports needed for the language server goes below this.
