@@ -5,6 +5,11 @@ import { ConfigurationChangeEvent, ConfigurationScope, WorkspaceConfiguration, W
 import { getInterpreterDetails } from './python';
 import { getConfiguration, getWorkspaceFolders } from './vscodeapi';
 
+interface AutoImport {
+    variable: string;
+    import: string;
+}
+
 export interface ISettings {
     cwd: string;
     workspace: string;
@@ -13,6 +18,8 @@ export interface ISettings {
     interpreter: string[];
     importStrategy: string;
     showNotifications: string;
+    autoImports: AutoImport[];
+    // Whenever adding a new variable, be sure to add a new value to the string array in checkIfConfigurationChanged
 }
 
 export function getExtensionSettings(namespace: string, includeInterpreter?: boolean): Promise<ISettings[]> {
@@ -61,7 +68,7 @@ export async function getWorkspaceSettings(
         }
     }
 
-    const workspaceSetting = {
+    return {
         cwd: workspace.uri.fsPath,
         workspace: workspace.uri.toString(),
         args: resolveVariables(config.get<string[]>(`args`) ?? [], workspace),
@@ -70,9 +77,8 @@ export async function getWorkspaceSettings(
         importStrategy: config.get<string>(`importStrategy`) ?? 'useBundled',
         showNotifications: config.get<string>(`showNotifications`) ?? 'off',
         // Actual defaults are set in lsp_server code
-        autoImports: config.get<string>(`autoImports`) ?? [],
+        autoImports: config.get<AutoImport[]>(`autoImports`) ?? [],
     };
-    return workspaceSetting;
 }
 
 function getGlobalValue<T>(config: WorkspaceConfiguration, key: string, defaultValue: T): T {
@@ -91,7 +97,7 @@ export async function getGlobalSettings(namespace: string, includeInterpreter?: 
         }
     }
 
-    const setting = {
+    return {
         cwd: process.cwd(),
         workspace: process.cwd(),
         args: getGlobalValue<string[]>(config, 'args', []),
@@ -99,8 +105,9 @@ export async function getGlobalSettings(namespace: string, includeInterpreter?: 
         interpreter: interpreter,
         importStrategy: getGlobalValue<string>(config, 'importStrategy', 'useBundled'),
         showNotifications: getGlobalValue<string>(config, 'showNotifications', 'off'),
+        // Actual defaults are set in lsp_server code
+        autoImports: getGlobalValue<AutoImport[]>(config, 'autoImports', []),
     };
-    return setting;
 }
 
 export function checkIfConfigurationChanged(e: ConfigurationChangeEvent, namespace: string): boolean {

@@ -70,8 +70,6 @@ TOOL_MODULE = "ruff"
 
 TOOL_DISPLAY = "Very Import-ant"
 
-# TODO: Update TOOL_ARGS with default argument you have to pass to your tool in
-# all scenarios.
 TOOL_ARGS = []  # default arguments always passed to your tool.
 
 
