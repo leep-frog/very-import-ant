@@ -278,7 +278,8 @@ def _get_settings_by_document(document: workspace.Document | None):
 # Internal execution APIs.
 # *****************************************************
 
-pylint_err_pattern = re.compile(r"^Undefined variable '(.+)'$")
+# pylint_err_pattern = re.compile(r"^Undefined variable '(.+)'$")
+flake8_err_pattern = re.compile(r"^undefined name '(.+)'$")
 # ruff_err_pattern = re.compile(r":[0-9]+:[0-9]+: F821 Undefined name `(.*)`$")
 
 def _execute_tool(document: workspace.Document):
@@ -304,25 +305,30 @@ def _execute_tool(document: workspace.Document):
 
 def _generate_required_imports(document: workspace.Document) -> List[str]:
     # Find all undefined variables
-    # TODO: Improve the speed of this (possibly by using flake8, ruff, or another linter?)
-    log_to_output(f"Start - pylint")
+    # TODO: Use ruff if they ever make an API callable from Python
+    log_to_output(f"Start - flake8")
     lint_result = utils.run_module(
-        module="pylint",
-        argv=["pylint", "--output-format=json", "--disable=all", "--enable=E0602", "--from-stdin", "flicker.py"],
+        module="flake8",
+        argv=["flake8", "--select=F821", "--format=json", "--stdin-display-name", document.path],
         use_stdin=True,
         cwd=".", # TODO: update this
         source=document.source,
     )
-    log_to_output(f"End - pylint")
+    log_to_output(f"End - flake8")
 
     errs = json.loads(lint_result.stdout)
-    log_to_output(f"Got pylint result: {lint_result.stdout}")
+
+    if len(errs) == 0:
+        return []
+
+    assert len(errs) == 1, f"Expected to get exactly one or zero keys, got {len(errs)}"
+    errs = list(errs.values())[0]
 
     import_aliases = _get_alias_map(document)
 
     add_imports = set()
     for err in errs:
-        m = pylint_err_pattern.search(err["message"])
+        m = flake8_err_pattern.search(err["text"])
         if not m:
             continue
 

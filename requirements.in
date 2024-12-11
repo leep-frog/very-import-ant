@@ -13,5 +13,5 @@ pygls
 packaging
 
 # ruff
-pylint
+flake8
 isort
