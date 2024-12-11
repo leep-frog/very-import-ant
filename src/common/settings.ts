@@ -19,6 +19,7 @@ export interface ISettings {
     importStrategy: string;
     showNotifications: string;
     autoImports: AutoImport[];
+    onTypeTriggerCharacters: string;
     // Whenever adding a new variable, be sure to add a new value to the string array in checkIfConfigurationChanged
 }
 
@@ -78,6 +79,7 @@ export async function getWorkspaceSettings(
         showNotifications: config.get<string>(`showNotifications`) ?? 'off',
         // Actual defaults are set in lsp_server code
         autoImports: config.get<AutoImport[]>(`autoImports`) ?? [],
+        onTypeTriggerCharacters: config.get<string>('onTypeTriggerCharacters') ?? '',
     };
 }
 
@@ -107,6 +109,7 @@ export async function getGlobalSettings(namespace: string, includeInterpreter?: 
         showNotifications: getGlobalValue<string>(config, 'showNotifications', 'off'),
         // Actual defaults are set in lsp_server code
         autoImports: getGlobalValue<AutoImport[]>(config, 'autoImports', []),
+        onTypeTriggerCharacters: getGlobalValue<string>(config, 'onTypeTriggerCharacters', ''),
     };
 }
 
@@ -118,6 +121,7 @@ export function checkIfConfigurationChanged(e: ConfigurationChangeEvent, namespa
         `${namespace}.importStrategy`,
         `${namespace}.showNotifications`,
         `${namespace}.autoImports`,
+        `${namespace}.onTypeTriggerCharacters`,
     ];
     const changed = settings.map((s) => e.affectsConfiguration(s));
     return changed.includes(true);

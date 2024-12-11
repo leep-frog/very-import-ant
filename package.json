@@ -70,6 +70,11 @@
     "configuration": {
       "properties": {
 
+        "very-import-ant.onTypeTriggerCharacters": {
+          "description": "The set of characters that, when typed, will trigger the formatter to run. Note that this is only relevant if the following settings are configured (either globally or in the `[python]` section:\n\n{\n  \"editor.formatOnType\": true,\n  \"editor.defaultFormatter\": \"groogle.very-import-ant\"\n}",
+          "default": "\n",
+          "type": "string"
+        },
         "very-import-ant.autoImports": {
           "default": [
             {

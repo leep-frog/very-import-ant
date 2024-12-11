@@ -80,8 +80,9 @@ TOOL_ARGS = []  # default arguments always passed to your tool.
 #  Sample implementations:
 #  Black: https://github.com/microsoft/vscode-black-formatter/blob/main/bundled/tool
 
-# TODO: generate these from settings (and add note that users may need to restart the server in order for changes to propagate)
-@LSP_SERVER.feature(lsp.TEXT_DOCUMENT_ON_TYPE_FORMATTING, lsp.DocumentOnTypeFormattingOptions(first_trigger_character="\n", more_trigger_character=[","]))
+_trigger_characters = os.getenv("LS_ON_TYPE_TRIGGER_CHARACTERS", "\n")
+
+@LSP_SERVER.feature(lsp.TEXT_DOCUMENT_ON_TYPE_FORMATTING, lsp.DocumentOnTypeFormattingOptions(first_trigger_character=_trigger_characters[0], more_trigger_character=_trigger_characters[1:]))
 def on_type_formatting(params: lsp.DocumentOnTypeFormattingParams) -> Optional[list[lsp.TextEdit]]:
     """LSP handler for textDocument/onTypeFormatting request."""
 
@@ -202,6 +203,7 @@ def _get_global_defaults():
                 "import": "from xarray import testing as xrt"
             },
         ]),
+        "onTypeTriggerCharacters": GLOBAL_SETTINGS.get("onTypeTriggerCharacters", "\n"),
     }
 
 
@@ -252,6 +254,14 @@ def _get_document_key(document: workspace.Document):
     return None
 
 
+def _deepcopy(func):
+    def wrapper(*args, **kwargs):
+        return copy.deepcopy(func(*args, **kwargs))
+
+    return wrapper
+
+
+@_deepcopy # deep copy here to prevent accidentally updating global settings.
 def _get_settings_by_document(document: workspace.Document | None):
     if document is None or document.path is None:
         return list(WORKSPACE_SETTINGS.values())[0]
@@ -291,8 +301,7 @@ def _execute_tool(document: workspace.Document):
           "--isolated",
         ])
 
-    # deep copy here to prevent accidentally updating global settings.
-    settings = copy.deepcopy(_get_settings_by_document(document))
+    settings = _get_settings_by_document(document)
 
     log_to_output(f"GOT SETTINGS: {settings}")
 
@@ -374,8 +383,7 @@ def _run_tool_on_document(
         # Skip standard library python files.
         return None
 
-    # deep copy here to prevent accidentally updating global settings.
-    settings = copy.deepcopy(_get_settings_by_document(document))
+    settings = _get_settings_by_document(document)
 
     code_workspace = settings["workspaceFS"]
     cwd = settings["cwd"]
@@ -480,8 +488,7 @@ def _run_tool_on_document(
 
 def _run_tool(extra_args: Sequence[str]) -> utils.RunResult:
     """Runs tool."""
-    # deep copy here to prevent accidentally updating global settings.
-    settings = copy.deepcopy(_get_settings_by_document(None))
+    settings = _get_settings_by_document(None)
 
     code_workspace = settings["workspaceFS"]
     cwd = settings["workspaceFS"]
