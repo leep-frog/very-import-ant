@@ -29,6 +29,9 @@ update_sys_path(
     os.fspath(pathlib.Path(__file__).parent.parent / "libs"),
 )
 
+# https://github.com/microsoft/vscode-isort/issues/316#issuecomment-2103588949
+update_sys_path(os.fspath(pathlib.Path(__file__).parent.parent / "tool"))
+
 import isort
 
 # **********************************************************
