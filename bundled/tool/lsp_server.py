@@ -283,6 +283,7 @@ def _execute_tool(document: workspace.Document):
     # formatting via stdin.
 
     # Find all undefined variables
+    log_to_output("PRE")
     lint_result = _run_tool_on_document(
         document,
         use_stdin=True,
@@ -367,6 +368,8 @@ def _run_tool_on_document(
     if use_stdin is true then contents of the document is passed to the
     tool via stdin.
     """
+
+    log_to_output("BREAK 1")
     if extra_args is None:
         extra_args = []
     if str(document.uri).startswith("vscode-notebook-cell"):
@@ -380,6 +383,8 @@ def _run_tool_on_document(
         log_to_output("Auto-formatting stdlib files is not supported")
         return None
 
+    log_to_output("BREAK 2")
+
     settings = _get_settings_by_document(document)
 
     code_workspace = settings["workspaceFS"]
@@ -387,6 +392,7 @@ def _run_tool_on_document(
 
     use_path = False
     use_rpc = False
+    log_to_output("BREAK 3")
     if settings["interpreter"] and not utils.is_current_interpreter(
         settings["interpreter"][0]
     ):
@@ -395,6 +401,7 @@ def _run_tool_on_document(
         argv = [TOOL_MODULE]
         use_rpc = True
     else:
+        log_to_output("BREAK 4")
         # if the interpreter is same as the interpreter running this
         # process then run as module.
         # argv = [TOOL_MODULE]
@@ -417,6 +424,7 @@ def _run_tool_on_document(
     else:
         argv += [document.path]
 
+    log_to_output("BREAK 5")
     if use_path:
         # This mode is used when running executables.
         log_to_output(" ".join(argv))
@@ -475,6 +483,7 @@ def _run_tool_on_document(
         if result.stderr:
             log_to_output(result.stderr)
 
+    log_to_output("BREAK 6")
     log_to_output(f"{document.uri} :\r\n{result.stdout}")
     return result
 
