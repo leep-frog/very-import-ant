@@ -14,7 +14,7 @@ import traceback
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Sequence
 
-import isort
+from bundled.libs import isort
 
 
 # **********************************************************
