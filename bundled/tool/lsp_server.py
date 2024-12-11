@@ -294,6 +294,8 @@ def _execute_tool(document: workspace.Document):
           "--isolated",
         ])
 
+    log_to_output(f"GOT LINT RESULT {lint_result}")
+
     settings = _get_settings_by_document(document)
 
     log_to_output(f"GOT SETTINGS: {settings}")
@@ -370,10 +372,12 @@ def _run_tool_on_document(
     if str(document.uri).startswith("vscode-notebook-cell"):
         # TODO: Decide on if you want to skip notebook cells.
         # Skip notebook cells
+        log_to_output("Notebooks are currently not supported")
         return None
 
     if utils.is_stdlib_file(document.path):
         # Skip standard library python files.
+        log_to_output("Auto-formatting stdlib files is not supported")
         return None
 
     settings = _get_settings_by_document(document)
