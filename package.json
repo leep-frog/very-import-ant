@@ -3,7 +3,7 @@
   "displayName": "Very Import-ant",
   "description": "Automatically add Python import statements",
   "icon": "logo.png",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "preview": true,
   "serverInfo": {
     "name": "Very Import-ant",
