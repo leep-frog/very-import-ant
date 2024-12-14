@@ -1,5 +1,4 @@
 
 
 def func():
-    _ = pd
-    x
+    _ = step1

@@ -655,7 +655,7 @@ class SettingsUpdate implements UserInteraction {
 suite('Extension Test Suite', () => {
   const requireSolo = testCases.some(tc => tc.runSolo);
 
-  testCases.filter(tc => !requireSolo || tc.runSolo).forEach((tc, idx) => {
+  testCases.filter((tc, idx) => idx === 0 || !requireSolo || tc.runSolo).forEach((tc, idx) => {
 
     test(tc.name, async () => {
 

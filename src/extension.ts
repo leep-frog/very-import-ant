@@ -210,6 +210,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return;
     }
 
+    // TODO: try-catch here for invalid importsToAdd
     const isortConfig = new Workspace({
       lint: {
         // TODO (maybe): add settings that allows additional import options
