@@ -1,0 +1,100 @@
+{
+  "name": "very-import-anty",
+  "displayName": "Very Import-anty",
+  "description": "",
+  "version": "0.0.1",
+  "publisher": "groogle",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters"
+  ],
+  "activationEvents": [
+    "onLanguage:python",
+    "workspaceContains:*.py"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "very-import-anty.testReset"
+      }
+    ],
+    "configuration": {
+      "properties": {
+        "very-import-anty.format.enable": {
+          "default": true,
+          "description": "Whether or not the formatter is enabled",
+          "type": "boolean"
+        },
+        "very-import-anty.onTypeTriggerCharacters": {
+          "description": "The set of characters that, when typed, will trigger the formatter to run. Note that this is only relevant if the following settings are configured (either globally or in the `[python]` section:\n\n{\n  \"editor.formatOnType\": true,\n  \"editor.defaultFormatter\": \"groogle.very-import-ant\"\n}",
+          "default": "\n",
+          "type": "string"
+        },
+        "very-import-anty.autoImports": {
+          "description": "The set of auto-imports to consider when formatting a python file",
+          "type": "array",
+          "default": [
+            {
+              "variable": "pd",
+              "import": "import pandas as pd"
+            },
+            {
+              "variable": "np",
+              "import": "import numpy as np"
+            },
+            {
+              "variable": "xr",
+              "import": "import xarray as xr"
+            },
+            {
+              "variable": "xrt",
+              "import": "from xarray import testing as xrt"
+            }
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "variable": {
+                "description": "Name of the variable which, when undefined in a python file, will trigger an auto-import",
+                "type": "string"
+              },
+              "import": {
+                "description": "The import statement to be included when the associated variable is undefined in a python file",
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src",
+    "pretest": "npm run compile",
+    "test": "vscode-test --coverage --coverageReporter lcov --coverageReporter html",
+    "posttest": "echo 'Open the following file for html coverage report:\nfile:///C:/Users/gleep/Desktop/Coding/vs-code/very-import-anty/coverage/Desktop/Coding/vs-code/very-import-anty/src/index.html'"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@types/vscode": "^1.96.0",
+    "@typescript-eslint/eslint-plugin": "^8.17.0",
+    "@typescript-eslint/parser": "^8.17.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^9.16.0",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "@astral-sh/ruff-wasm-nodejs": "^0.8.2",
+    "@leep-frog/vscode-test-stubber": "^1.13.0"
+  }
+}
