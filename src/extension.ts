@@ -42,14 +42,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Handle settings updates
     vscode.workspace.onDidChangeConfiguration(e => {
-      if (e.affectsConfiguration("very-import-anty")) {
+      if (e.affectsConfiguration("very-import-ant")) {
         vif.reload();
       }
 
       // TODO: update onType (dispose and re-add to context)
     }),
 
-    vscode.commands.registerCommand('very-import-anty.testReset', () => {
+    vscode.commands.registerCommand('very-import-ant.testReset', () => {
       if (process.env.TEST_MODE) {
         vif.reload();
       } else {
@@ -94,7 +94,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   private reloadSettings(): VeryImportantSettings {
-    const config = vscode.workspace.getConfiguration("very-import-anty");
+    const config = vscode.workspace.getConfiguration("very-import-ant");
 
     console.log(`CONFIG: ${JSON.stringify(config)}`);
 
@@ -229,7 +229,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
           'I001',
           'I002',
         ],
-        isort: {'required-imports': importsToAdd,
+        isort: {
+          'required-imports': importsToAdd,
           'lines-after-imports': 2,
           'combine-as-imports': true,
         },

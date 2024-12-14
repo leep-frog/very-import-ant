@@ -41,7 +41,7 @@ function defaultConfig(enabled?: boolean): WorkspaceConfiguration {
         ["files", new Map<string, any>([
           ["eol", "\n"],
         ])],
-        ["very-import-anty", new Map<string, any>([
+        ["very-import-ant", new Map<string, any>([
           ["format", new Map<string, any>([
             ["enable", enabled ?? true],
           ])],
@@ -91,7 +91,7 @@ function defaultConfig(enabled?: boolean): WorkspaceConfiguration {
       ["python", new Map<vscode.ConfigurationTarget, Map<string, any>>([
         [vscode.ConfigurationTarget.Global, new Map<string, any>([
           ["editor", new Map<string, any>([
-            ["defaultFormatter", "groogle.very-import-anty"],
+            ["defaultFormatter", "groogle.very-import-ant"],
             ["formatOnType", "true"],
           ])],
         ])],
@@ -436,7 +436,7 @@ suite('Extension Test Suite', () => {
       // Add reset command
       tc.stc.file = startingFile("empty.py");
       tc.stc.userInteractions = [
-        cmd("very-import-anty.testReset"),
+        cmd("very-import-ant.testReset"),
         ...(tc.stc.userInteractions || []),
       ];
 

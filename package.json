@@ -1,6 +1,6 @@
 {
-  "name": "very-import-anty",
-  "displayName": "Very Import-anty",
+  "name": "very-import-ant",
+  "displayName": "Very Import-ant",
   "description": "",
   "version": "0.0.1",
   "publisher": "groogle",
@@ -20,22 +20,23 @@
   "contributes": {
     "commands": [
       {
-        "command": "very-import-anty.testReset"
+        "title": "Test Reset",
+        "command": "very-import-ant.testReset"
       }
     ],
     "configuration": {
       "properties": {
-        "very-import-anty.format.enable": {
+        "very-import-ant.format.enable": {
           "default": true,
           "description": "Whether or not the formatter is enabled",
           "type": "boolean"
         },
-        "very-import-anty.onTypeTriggerCharacters": {
+        "very-import-ant.onTypeTriggerCharacters": {
           "description": "The set of characters that, when typed, will trigger the formatter to run. Note that this is only relevant if the following settings are configured (either globally or in the `[python]` section:\n\n{\n  \"editor.formatOnType\": true,\n  \"editor.defaultFormatter\": \"groogle.very-import-ant\"\n}",
           "default": "\n",
           "type": "string"
         },
-        "very-import-anty.autoImports": {
+        "very-import-ant.autoImports": {
           "description": "The set of auto-imports to consider when formatting a python file",
           "type": "array",
           "default": [
@@ -80,7 +81,7 @@
     "lint": "eslint src",
     "pretest": "npm run compile",
     "test": "vscode-test --coverage --coverageReporter lcov --coverageReporter html",
-    "posttest": "echo 'Open the following file for html coverage report:\nfile:///C:/Users/gleep/Desktop/Coding/vs-code/very-import-anty/coverage/Desktop/Coding/vs-code/very-import-anty/src/index.html'"
+    "posttest": "echo 'Open the following file for html coverage report:\nfile:///C:/Users/gleep/Desktop/Coding/vs-code/very-import-ant/coverage/Desktop/Coding/vs-code/very-import-ant/src/index.html'"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
