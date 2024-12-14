@@ -1,2 +1,5 @@
+
+
 def func():
-    _ = multi
+    _ = pd
+    x

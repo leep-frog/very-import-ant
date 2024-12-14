@@ -2,7 +2,7 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "groogle",
   "engines": {
     "vscode": "^1.96.0"
@@ -81,7 +81,7 @@
     "lint": "eslint src",
     "pretest": "npm run compile",
     "test": "vscode-test --coverage --coverageReporter lcov --coverageReporter html",
-    "posttest": "echo 'Open the following file for html coverage report:\nfile:///C:/Users/gleep/Desktop/Coding/vs-code/very-import-ant/coverage/Desktop/Coding/vs-code/very-import-ant/src/index.html'"
+    "posttest": "echo 'Open the following file for html coverage report:\nfile:///C:/Users/gleep/Desktop/Coding/vs-code/very-import-ant/coverage/index.html'"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

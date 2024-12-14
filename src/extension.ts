@@ -33,7 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.languages.registerOnTypeFormattingEditProvider({
       language: "python",
       scheme: "file",
-    }, vif, "\n"),
+    }, vif, vif.settings.onTypeTriggerCharacters.at(0) || "\n", ...vif.settings.onTypeTriggerCharacters.slice(1)),
 
     vscode.languages.registerDocumentRangeFormattingEditProvider({
       language: "python",
@@ -86,7 +86,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     this.onTypeRegistration = vscode.languages.registerOnTypeFormattingEditProvider({
       language: "python",
       scheme: "file",
-    }, this, this.settings.onTypeTriggerCharacters.at(0) || "", ...this.settings.onTypeTriggerCharacters.slice(1));
+    }, this, this.settings.onTypeTriggerCharacters.at(0) || "\n", ...this.settings.onTypeTriggerCharacters.slice(1));
   }
 
   reload() {

@@ -2,5 +2,6 @@
   "[python]": {
     "editor.formatOnType": true,
     "editor.defaultFormatter": "groogle.very-import-ant",
-  }
+  },
+  "very-import-ant.onTypeTriggerCharacters": "\ndp",
 }

@@ -28,9 +28,11 @@ function writeText(contents: string[]): UserInteraction {
   );
 }
 
+const FORMAT_DELAY = delay(250);
+
 const FORMAT_DOC = combineInteractions(
   // TODO: determine what this actually needs to wait for (apparently waiter above is not sufficient)
-  delay(250),
+  FORMAT_DELAY,
   cmd("editor.action.formatDocument"),
 );
 
@@ -45,6 +47,7 @@ function defaultConfig(enabled?: boolean): WorkspaceConfiguration {
           ["format", new Map<string, any>([
             ["enable", enabled ?? true],
           ])],
+          ["onTypeTriggerCharacters", "\ndp"],
           // TODO: vscode-test-stubber with configuration defaults?
           ["autoImports", [
             {
@@ -417,6 +420,144 @@ const testCases: TestCase[] = [
         "    _ = multi",
       ],
       expectedSelections: [sel(4, 0)],
+      workspaceConfiguration: defaultConfig(),
+    },
+  },
+  {
+    name: "Formats onType for first of more_trigger_characters",
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    ",
+    ],
+    stc: {
+      selections: [sel(4, 4)],
+      userInteractions: [
+        cmd("type", { text: "d" }),
+        FORMAT_DELAY,
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    d",
+      ],
+      expectedSelections: [sel(5, 5)],
+      workspaceConfiguration: defaultConfig(),
+    },
+  },
+  {
+    // Note, this test is after the more_trigger_characters because we want
+    // to confirm that any character (not just first_trigger_character)
+    // will trigger formatting first (i.e. trigger works if the "first trigger character" typed
+    // is contained in "more_trigger_characters")
+    name: "Formats onType for first_trigger_character",
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    stc: {
+      selections: [sel(3, 10)],
+      userInteractions: [
+        cmd("type", { text: "\n" }),
+        FORMAT_DELAY,
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    ",
+      ],
+      expectedSelections: [sel(5, 4)],
+      workspaceConfiguration: defaultConfig(),
+    },
+  },
+  {
+    name: "Formats onType for second of more_trigger_characters",
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    ",
+    ],
+    stc: {
+      selections: [sel(4, 4)],
+      userInteractions: [
+        cmd("type", { text: "d" }),
+        FORMAT_DELAY,
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    d",
+      ],
+      expectedSelections: [sel(5, 5)],
+      workspaceConfiguration: defaultConfig(),
+    },
+  },
+  {
+    name: "Formats onType and includes newly added undefined variable",
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    n",
+    ],
+    stc: {
+      selections: [sel(4, 5)],
+      userInteractions: [
+        cmd("type", { text: "p" }),
+        FORMAT_DELAY,
+      ],
+      expectedText: [
+        "import numpy as np",
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    np",
+      ],
+      expectedSelections: [sel(6, 6)],
+      workspaceConfiguration: defaultConfig(),
+    },
+  },
+  {
+    name: "Does not format onType if not a trigger character",
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    x",
+    ],
+    stc: {
+      selections: [sel(4, 5)],
+      userInteractions: [
+        cmd("type", { text: "r" }),
+        FORMAT_DELAY,
+      ],
+      expectedText: [
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    xr",
+      ],
+      expectedSelections: [sel(4, 6)],
       workspaceConfiguration: defaultConfig(),
     },
   },
