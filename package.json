@@ -18,12 +18,7 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "title": "Test Reset",
-        "command": "very-import-ant.testReset"
-      }
-    ],
+    "commands": [],
     "configuration": {
       "properties": {
         "very-import-ant.format.enable": {

@@ -7,8 +7,8 @@ import * as vscode from 'vscode';
 // as well as import your extension to test it
 // import * as myExtension from '../../extension';
 
-function startingFile(filename: string) {
-  return path.resolve(__dirname, "..", "..", "src", "test", "test-workspace", filename);
+function startingFile(...filename: string[]) {
+  return path.resolve(__dirname, "..", "..", "src", "test", "test-workspace", path.join(...filename));
 }
 
 function sel(line: number, char: number): vscode.Selection {
@@ -638,10 +638,24 @@ const testCases: TestCase[] = [
   },
 ];
 
+class SettingsUpdate implements UserInteraction {
+
+  private contents: any;
+
+  constructor(contents: any) {
+    this.contents = contents;
+  }
+
+  async do(): Promise<any> {
+    const settingsFile = startingFile(".vscode", "settings.json");
+    writeFileSync(settingsFile, JSON.stringify(this.contents, undefined, 2));
+  }
+}
+
 suite('Extension Test Suite', () => {
   const requireSolo = testCases.some(tc => tc.runSolo);
 
-  testCases.filter(tc => !requireSolo || tc.runSolo).forEach(tc => {
+  testCases.filter(tc => !requireSolo || tc.runSolo).forEach((tc, idx) => {
 
     test(tc.name, async () => {
 
@@ -652,7 +666,14 @@ suite('Extension Test Suite', () => {
       // Add reset command
       tc.stc.file = startingFile("empty.py");
       tc.stc.userInteractions = [
-        cmd("very-import-ant.testReset"),
+        new SettingsUpdate({
+          "[python]": {
+            "editor.formatOnType": true,
+            "editor.defaultFormatter": "groogle.very-import-ant",
+          },
+          "very-import-ant.onTypeTriggerCharacters": "\ndp" + (idx % 2 === 1 ? "z" : "x"),
+        }),
+        delay(500),
         ...(tc.stc.userInteractions || []),
       ];
 

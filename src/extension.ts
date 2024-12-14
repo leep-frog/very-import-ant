@@ -40,17 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
       if (e.affectsConfiguration("very-import-ant")) {
         vif.reload(context);
       }
-
-      // TODO: update onType (dispose and re-add to context)
     }),
-
-    vscode.commands.registerCommand('very-import-ant.testReset', () => {
-      if (process.env.TEST_MODE) {
-        vif.reload(context);
-      } else {
-        vscode.window.showErrorMessage(`Cannot run testReset outside of test mode!`);
-      }
-    })
   );
 }
 
@@ -74,7 +64,6 @@ interface VeryImportantSettings {
 class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, vscode.OnTypeFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
 
   settings: VeryImportantSettings;
-
 
   constructor(context: vscode.ExtensionContext) {
     this.settings = this.reloadSettings(context);
