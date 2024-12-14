@@ -28,7 +28,7 @@ function writeText(contents: string[]): UserInteraction {
   );
 }
 
-const FORMAT_DELAY = delay(250);
+const FORMAT_DELAY = delay(75);
 
 const FORMAT_DOC = combineInteractions(
   // TODO: determine what this actually needs to wait for (apparently waiter above is not sufficient)

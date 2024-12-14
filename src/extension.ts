@@ -22,6 +22,8 @@ const ALL_CHARACTERS = "\n`1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./~!@#$%
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
+  const vif = new VeryImportantFormatter();
+
   context.subscriptions.push(
     vscode.languages.registerDocumentFormattingEditProvider({
       language: "python",
@@ -305,5 +307,3 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
 // This method is called when your extension is deactivated
 export function deactivate() { }
-
-const vif = new VeryImportantFormatter();
