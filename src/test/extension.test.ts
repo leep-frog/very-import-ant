@@ -1,4 +1,4 @@
-import { cmd, combineInteractions, delay, SimpleTestCase, SimpleTestCaseProps, UserInteraction, Waiter, WorkspaceConfiguration } from '@leep-frog/vscode-test-stubber';
+import { cmd, combineInteractions, delay, SimpleTestCase, SimpleTestCaseProps, UserInteraction, Waiter } from '@leep-frog/vscode-test-stubber';
 import { writeFileSync } from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
@@ -41,77 +41,59 @@ interface VeryImportConfig {
   enabled?: boolean;
 }
 
-function defaultConfig(config?: VeryImportConfig): WorkspaceConfiguration {
+function defaultSettings(config?: VeryImportConfig) {
   return {
-    configuration: new Map<vscode.ConfigurationTarget, Map<string, any>>([
-      [vscode.ConfigurationTarget.Global, new Map<string, any>([
-        ["files", new Map<string, any>([
-          ["eol", "\n"],
-        ])],
-        ["very-import-ant", new Map<string, any>([
-          ["format", new Map<string, any>([
-            ["enable", config?.enabled ?? true],
-          ])],
-          ["onTypeTriggerCharacters", config?.onTypeTriggerCharacters],
-          // TODO: vscode-test-stubber with configuration defaults? or better yet
-          //       just use real config (users can use workspace in mjs file and
-          //       we can set settings via that).
-          ["autoImports", [
-            {
-              variable: "pd",
-              import: "import pandas as pd",
-            },
-            {
-              variable: "np",
-              import: "import numpy as np",
-            },
-            {
-              variable: "xr",
-              import: "import xarray as xr",
-            },
-            {
-              variable: "xrt",
-              import: "from xarray import testing as xrt",
-            },
-            {
-              variable: "alpha",
-              import: "from greece import a as alpha",
-            },
-            {
-              variable: "beta",
-              import: "from greece import b as beta",
-            },
-            {
-              variable: "multi",
-              import: "from pair import left",
-            },
-            {
-              variable: "multi",
-              import: "from pair import right",
-            },
-            {
-              variable: "multi",
-              import: "from another import multi",
-            },
-          ]],
-        ])],
-      ])],
-    ]),
-    languageConfiguration: new Map<string, Map<vscode.ConfigurationTarget, Map<string, any>>>([
-      ["python", new Map<vscode.ConfigurationTarget, Map<string, any>>([
-        [vscode.ConfigurationTarget.Global, new Map<string, any>([
-          ["editor", new Map<string, any>([
-            ["defaultFormatter", "groogle.very-import-ant"],
-            ["formatOnType", "true"],
-          ])],
-        ])],
-      ])],
-    ]),
+    "[python]": {
+      "editor.formatOnType": true,
+      "editor.defaultFormatter": "groogle.very-import-ant",
+    },
+    "files.eol": "\n",
+    "very-import-ant.format.enable": config?.enabled ?? true,
+    "very-import-ant.onTypeTriggerCharacters": config?.onTypeTriggerCharacters,
+    "very-import-ant.autoImports": [
+      {
+        variable: "pd",
+        import: "import pandas as pd",
+      },
+      {
+        variable: "np",
+        import: "import numpy as np",
+      },
+      {
+        variable: "xr",
+        import: "import xarray as xr",
+      },
+      {
+        variable: "xrt",
+        import: "from xarray import testing as xrt",
+      },
+      {
+        variable: "alpha",
+        import: "from greece import a as alpha",
+      },
+      {
+        variable: "beta",
+        import: "from greece import b as beta",
+      },
+      {
+        variable: "multi",
+        import: "from pair import left",
+      },
+      {
+        variable: "multi",
+        import: "from pair import right",
+      },
+      {
+        variable: "multi",
+        import: "from another import multi",
+      },
+    ],
   };
 }
 
 interface TestCase {
   name: string;
+  settings: any;
   fileContents: string[];
   stc: SimpleTestCaseProps;
   runSolo?: boolean;
@@ -122,13 +104,13 @@ interface TestCase {
 const testCases: TestCase[] = [
   {
     name: "Fails if disabled",
+    settings: defaultSettings({ enabled: false }),
     fileContents: [],
     stc: {
       userInteractions: [
         FORMAT_DOC,
       ],
       expectedText: [""],
-      workspaceConfiguration: defaultConfig({ enabled: false }),
       expectedErrorMessages: [
         'The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings',
       ],
@@ -136,17 +118,18 @@ const testCases: TestCase[] = [
   },
   {
     name: "Handles empty file",
+    settings: defaultSettings(),
     fileContents: [],
     stc: {
       userInteractions: [
         FORMAT_DOC,
       ],
       expectedText: [""],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Ignores unsupported undefined variable name",
+    settings: defaultSettings(),
     fileContents: [
       "def func():",
       "    _ = idk",
@@ -159,12 +142,12 @@ const testCases: TestCase[] = [
         "def func():",
         "    _ = idk",
       ],
-      workspaceConfiguration: defaultConfig(),
       expectedSelections: [sel(1, 11)],
     },
   },
   {
     name: "Adds import for single supported variable when indentation is included",
+    settings: defaultSettings(),
     fileContents: [
       "",
       "",
@@ -183,11 +166,11 @@ const testCases: TestCase[] = [
         "    _ = pd",
       ],
       expectedSelections: [sel(4, 10)],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Adds import when module doc included",
+    settings: defaultSettings(),
     fileContents: [
       `"""Some docstring."""`,
       "",
@@ -206,11 +189,11 @@ const testCases: TestCase[] = [
         "def func():",
         "    _ = pd",
       ],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Adds import for single supported variable",
+    settings: defaultSettings(),
     fileContents: [
       "def func():",
       "    _ = pd",
@@ -227,11 +210,11 @@ const testCases: TestCase[] = [
         "    _ = pd",
       ],
       expectedSelections: [sel(3, 0)],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Adds single import for multiple undefined refs",
+    settings: defaultSettings(),
     fileContents: [
       "def func():",
       "    _ = pd",
@@ -250,11 +233,11 @@ const testCases: TestCase[] = [
         "    df = pd.DataFrame",
       ],
       expectedSelections: [sel(3, 0)],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Imports all built-in imports",
+    settings: defaultSettings(),
     fileContents: [
       "def func():",
       "    _ = pd",
@@ -286,11 +269,11 @@ const testCases: TestCase[] = [
         "    another = pd.DataFrame()",
       ],
       expectedSelections: [sel(6, 0)],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Adds auto-imports from settings",
+    settings: defaultSettings(),
     fileContents: [
       "def func():",
       "    _ = pd",
@@ -322,11 +305,11 @@ const testCases: TestCase[] = [
         "    another = pd.DataFrame()",
       ],
       expectedSelections: [sel(6, 0)],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Recurs to fix import order for imports from same source",
+    settings: defaultSettings(),
     fileContents: [
       "def func():",
       "    _ = alpha",
@@ -347,11 +330,11 @@ const testCases: TestCase[] = [
         "    return beta - alpha",
       ],
       expectedSelections: [sel(3, 0)],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Adds import to list",
+    settings: defaultSettings(),
     fileContents: [
       "from greece import b as beta",
       "",
@@ -373,12 +356,11 @@ const testCases: TestCase[] = [
         "    k = beta + 2",
         "    return beta - alpha",
       ],
-      // expectedSelections: [sel(3, 0)],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Recurs with multiple imports",
+    settings: defaultSettings(),
     fileContents: [
       "def func():",
       "    _ = alpha",
@@ -405,11 +387,11 @@ const testCases: TestCase[] = [
         "    return beta - alpha",
       ],
       expectedSelections: [sel(5, 0)],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Works with multiple values for single alias",
+    settings: defaultSettings(),
     fileContents: [
       "def func():",
       "    _ = multi",
@@ -427,11 +409,13 @@ const testCases: TestCase[] = [
         "    _ = multi",
       ],
       expectedSelections: [sel(4, 0)],
-      workspaceConfiguration: defaultConfig(),
     },
   },
   {
     name: "Formats onType for first of more_trigger_characters",
+    settings: defaultSettings({
+      onTypeTriggerCharacters: "\ndp",
+    }),
     fileContents: [
       "",
       "",
@@ -454,9 +438,7 @@ const testCases: TestCase[] = [
         "    d",
       ],
       expectedSelections: [sel(5, 5)],
-      workspaceConfiguration: defaultConfig({
-        onTypeTriggerCharacters: "\ndp",
-      }),
+
     },
   },
   {
@@ -465,6 +447,9 @@ const testCases: TestCase[] = [
     // will trigger formatting first (i.e. trigger works if the "first trigger character" typed
     // is contained in "more_trigger_characters")
     name: "Formats onType for first_trigger_character",
+    settings: defaultSettings({
+      onTypeTriggerCharacters: "\n",
+    }),
     fileContents: [
       "",
       "",
@@ -486,13 +471,13 @@ const testCases: TestCase[] = [
         "    ",
       ],
       expectedSelections: [sel(5, 4)],
-      workspaceConfiguration: defaultConfig({
-        onTypeTriggerCharacters: "\n",
-      }),
     },
   },
   {
     name: "Formats onType for onTypeTriggerCharacter defaults to \\n if falsy",
+    settings: defaultSettings({
+      onTypeTriggerCharacters: "",
+    }),
     fileContents: [
       "",
       "",
@@ -514,13 +499,13 @@ const testCases: TestCase[] = [
         "    ",
       ],
       expectedSelections: [sel(5, 4)],
-      workspaceConfiguration: defaultConfig({
-        onTypeTriggerCharacters: "",
-      }),
     },
   },
   {
     name: "Formats onType for second of more_trigger_characters",
+    settings: defaultSettings({
+      onTypeTriggerCharacters: "\ndp",
+    }),
     fileContents: [
       "",
       "",
@@ -543,13 +528,13 @@ const testCases: TestCase[] = [
         "    d",
       ],
       expectedSelections: [sel(5, 5)],
-      workspaceConfiguration: defaultConfig({
-        onTypeTriggerCharacters: "\ndp",
-      }),
     },
   },
   {
     name: "Formats onType and includes newly added undefined variable",
+    settings: defaultSettings({
+      onTypeTriggerCharacters: "\ndp",
+    }),
     fileContents: [
       "",
       "",
@@ -573,13 +558,13 @@ const testCases: TestCase[] = [
         "    np",
       ],
       expectedSelections: [sel(6, 6)],
-      workspaceConfiguration: defaultConfig({
-        onTypeTriggerCharacters: "\ndp",
-      }),
     },
   },
   {
     name: "Does not format onType if not a trigger character",
+    settings: defaultSettings({
+      onTypeTriggerCharacters: "\ndp",
+    }),
     fileContents: [
       "",
       "",
@@ -601,13 +586,13 @@ const testCases: TestCase[] = [
         "    xr",
       ],
       expectedSelections: [sel(4, 6)],
-      workspaceConfiguration: defaultConfig({
-        onTypeTriggerCharacters: "\ndp",
-      }),
     },
   },
   {
     name: "Works if first_trigger_character is a letter",
+    settings: defaultSettings({
+      onTypeTriggerCharacters: "r",
+    }),
     fileContents: [
       "",
       "",
@@ -631,9 +616,6 @@ const testCases: TestCase[] = [
         "    xr",
       ],
       expectedSelections: [sel(6, 6)],
-      workspaceConfiguration: defaultConfig({
-        onTypeTriggerCharacters: "r",
-      }),
     },
   },
 ];
@@ -665,14 +647,9 @@ suite('Extension Test Suite', () => {
 
       // Add reset command
       tc.stc.file = startingFile("empty.py");
+      tc.stc.skipWorkspaceConfiguration = true;
       tc.stc.userInteractions = [
-        new SettingsUpdate({
-          "[python]": {
-            "editor.formatOnType": true,
-            "editor.defaultFormatter": "groogle.very-import-ant",
-          },
-          "very-import-ant.onTypeTriggerCharacters": "\ndp" + (idx % 2 === 1 ? "z" : "x"),
-        }),
+        new SettingsUpdate(tc.settings),
         delay(500),
         ...(tc.stc.userInteractions || []),
       ];
