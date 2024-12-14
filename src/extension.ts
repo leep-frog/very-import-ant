@@ -30,13 +30,6 @@ export function activate(context: vscode.ExtensionContext) {
       scheme: "file",
     }, vif),
 
-    // TODO: get this to work (https://github.com/microsoft/vscode/issues/235948)
-    // Perhaps use `vscode.workspace.onDidChangeTextDocument` in the meantime?
-    vscode.languages.registerOnTypeFormattingEditProvider({
-      language: "python",
-      scheme: "file",
-    }, vif, vif.settings.onTypeTriggerCharacters.at(0) || "\n", ...vif.settings.onTypeTriggerCharacters.slice(1)),
-
     vscode.languages.registerDocumentRangeFormattingEditProvider({
       language: "python",
       scheme: "file",
@@ -74,21 +67,17 @@ interface AutoImport {
 
 interface VeryImportantSettings {
   enabled: boolean;
-  onTypeTriggerCharacters: string;
   autoImports: Map<string, string[]>;
+  onTypeRegistration: vscode.Disposable;
 }
 
 class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, vscode.OnTypeFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
 
   settings: VeryImportantSettings;
-  onTypeRegistration: vscode.Disposable;
+
 
   constructor(context: vscode.ExtensionContext) {
     this.settings = this.reloadSettings(context);
-    this.onTypeRegistration = vscode.languages.registerOnTypeFormattingEditProvider({
-      language: "python",
-      scheme: "file",
-    }, this, this.settings.onTypeTriggerCharacters.at(0) || "\n", ...this.settings.onTypeTriggerCharacters.slice(1));
   }
 
   reload(context: vscode.ExtensionContext) {
@@ -115,12 +104,26 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     console.log(`AI: ${JSON.stringify(config.get("autoImports"))}`);
     console.log(`OT: ${JSON.stringify(config.get("onTypeTriggerCharacters"))}`);
 
+    // TODO: Remove || after settings updates in tests is fixed
+    const otc = config.get<string>("onTypeTriggerCharacters", "") || "";
+
+    if (this.settings?.onTypeRegistration) {
+      this.settings.onTypeRegistration.dispose();
+    }
+
+    const reg = vscode.languages.registerOnTypeFormattingEditProvider({
+      language: "python",
+      scheme: "file",
+    }, this, otc.at(0) || "\n", ...otc.slice(1));
+
+    context.subscriptions.push(reg);
+
     return {
       // Note that the secondary values are soft defaults and only fallbacks to avoid
       // undefined values. Actual defaults are set in package.json.
       enabled: config.get<boolean>("format.enable", false),
-      onTypeTriggerCharacters: config.get<string>("onTypeTriggerCharacters", ""),
       autoImports: autoImportMap,
+      onTypeRegistration: reg,
     };
   }
 
@@ -142,12 +145,6 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   provideOnTypeFormattingEdits(document: vscode.TextDocument, position: vscode.Position, ch: string, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-
-    if (!this.settings.onTypeTriggerCharacters.includes(ch)) {
-      console.log(`Not formatting on type`);
-      return;
-    }
-
     console.log(`Formatting on type`);
     return this.formatDocument(document);
   }

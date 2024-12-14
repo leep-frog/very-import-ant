@@ -28,7 +28,7 @@ function writeText(contents: string[]): UserInteraction {
   );
 }
 
-const FORMAT_DELAY = delay(75);
+const FORMAT_DELAY = delay(100);
 
 const FORMAT_DOC = combineInteractions(
   // TODO: determine what this actually needs to wait for (apparently waiter above is not sufficient)
@@ -36,7 +36,12 @@ const FORMAT_DOC = combineInteractions(
   cmd("editor.action.formatDocument"),
 );
 
-function defaultConfig(enabled?: boolean): WorkspaceConfiguration {
+interface VeryImportConfig {
+  onTypeTriggerCharacters?: string;
+  enabled?: boolean;
+}
+
+function defaultConfig(config?: VeryImportConfig): WorkspaceConfiguration {
   return {
     configuration: new Map<vscode.ConfigurationTarget, Map<string, any>>([
       [vscode.ConfigurationTarget.Global, new Map<string, any>([
@@ -45,10 +50,12 @@ function defaultConfig(enabled?: boolean): WorkspaceConfiguration {
         ])],
         ["very-import-ant", new Map<string, any>([
           ["format", new Map<string, any>([
-            ["enable", enabled ?? true],
+            ["enable", config?.enabled ?? true],
           ])],
-          ["onTypeTriggerCharacters", "\ndp"],
-          // TODO: vscode-test-stubber with configuration defaults?
+          ["onTypeTriggerCharacters", config?.onTypeTriggerCharacters],
+          // TODO: vscode-test-stubber with configuration defaults? or better yet
+          //       just use real config (users can use workspace in mjs file and
+          //       we can set settings via that).
           ["autoImports", [
             {
               variable: "pd",
@@ -121,7 +128,7 @@ const testCases: TestCase[] = [
         FORMAT_DOC,
       ],
       expectedText: [""],
-      workspaceConfiguration: defaultConfig(false),
+      workspaceConfiguration: defaultConfig({ enabled: false }),
       expectedErrorMessages: [
         'The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings',
       ],
@@ -447,7 +454,9 @@ const testCases: TestCase[] = [
         "    d",
       ],
       expectedSelections: [sel(5, 5)],
-      workspaceConfiguration: defaultConfig(),
+      workspaceConfiguration: defaultConfig({
+        onTypeTriggerCharacters: "\ndp",
+      }),
     },
   },
   {
@@ -477,7 +486,37 @@ const testCases: TestCase[] = [
         "    ",
       ],
       expectedSelections: [sel(5, 4)],
-      workspaceConfiguration: defaultConfig(),
+      workspaceConfiguration: defaultConfig({
+        onTypeTriggerCharacters: "\n",
+      }),
+    },
+  },
+  {
+    name: "Formats onType for onTypeTriggerCharacter defaults to \\n if falsy",
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    stc: {
+      selections: [sel(3, 10)],
+      userInteractions: [
+        cmd("type", { text: "\n" }),
+        FORMAT_DELAY,
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    ",
+      ],
+      expectedSelections: [sel(5, 4)],
+      workspaceConfiguration: defaultConfig({
+        onTypeTriggerCharacters: "",
+      }),
     },
   },
   {
@@ -504,7 +543,9 @@ const testCases: TestCase[] = [
         "    d",
       ],
       expectedSelections: [sel(5, 5)],
-      workspaceConfiguration: defaultConfig(),
+      workspaceConfiguration: defaultConfig({
+        onTypeTriggerCharacters: "\ndp",
+      }),
     },
   },
   {
@@ -532,7 +573,9 @@ const testCases: TestCase[] = [
         "    np",
       ],
       expectedSelections: [sel(6, 6)],
-      workspaceConfiguration: defaultConfig(),
+      workspaceConfiguration: defaultConfig({
+        onTypeTriggerCharacters: "\ndp",
+      }),
     },
   },
   {
@@ -558,7 +601,39 @@ const testCases: TestCase[] = [
         "    xr",
       ],
       expectedSelections: [sel(4, 6)],
-      workspaceConfiguration: defaultConfig(),
+      workspaceConfiguration: defaultConfig({
+        onTypeTriggerCharacters: "\ndp",
+      }),
+    },
+  },
+  {
+    name: "Works if first_trigger_character is a letter",
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    x",
+    ],
+    stc: {
+      selections: [sel(4, 5)],
+      userInteractions: [
+        cmd("type", { text: "r" }),
+        FORMAT_DELAY,
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "import xarray as xr",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    xr",
+      ],
+      expectedSelections: [sel(6, 6)],
+      workspaceConfiguration: defaultConfig({
+        onTypeTriggerCharacters: "r",
+      }),
     },
   },
 ];
