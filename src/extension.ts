@@ -22,7 +22,7 @@ const ALL_CHARACTERS = "\n`1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./~!@#$%
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-  const vif = new VeryImportantFormatter();
+  const vif = new VeryImportantFormatter(context);
 
   context.subscriptions.push(
     vscode.languages.registerDocumentFormattingEditProvider({
@@ -45,7 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Handle settings updates
     vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration("very-import-ant")) {
-        vif.reload();
+        vif.reload(context);
       }
 
       // TODO: update onType (dispose and re-add to context)
@@ -53,7 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('very-import-ant.testReset', () => {
       if (process.env.TEST_MODE) {
-        vif.reload();
+        vif.reload(context);
       } else {
         vscode.window.showErrorMessage(`Cannot run testReset outside of test mode!`);
       }
@@ -83,19 +83,19 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   settings: VeryImportantSettings;
   onTypeRegistration: vscode.Disposable;
 
-  constructor() {
-    this.settings = this.reloadSettings();
+  constructor(context: vscode.ExtensionContext) {
+    this.settings = this.reloadSettings(context);
     this.onTypeRegistration = vscode.languages.registerOnTypeFormattingEditProvider({
       language: "python",
       scheme: "file",
     }, this, this.settings.onTypeTriggerCharacters.at(0) || "\n", ...this.settings.onTypeTriggerCharacters.slice(1));
   }
 
-  reload() {
-    this.settings = this.reloadSettings();
+  reload(context: vscode.ExtensionContext) {
+    this.settings = this.reloadSettings(context);
   }
 
-  private reloadSettings(): VeryImportantSettings {
+  private reloadSettings(context: vscode.ExtensionContext): VeryImportantSettings {
     const config = vscode.workspace.getConfiguration("very-import-ant");
 
     console.log(`CONFIG: ${JSON.stringify(config)}`);
