@@ -1,4 +1,4 @@
-import { cmd, combineInteractions, delay, SimpleTestCase, SimpleTestCaseProps, UserInteraction, Waiter } from '@leep-frog/vscode-test-stubber';
+import { cmd, combineInteractions, delay, SimpleTestCase, SimpleTestCaseProps, UserInteraction } from '@leep-frog/vscode-test-stubber';
 import { writeFileSync } from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
@@ -13,19 +13,6 @@ function startingFile(...filename: string[]) {
 
 function sel(line: number, char: number): vscode.Selection {
   return new vscode.Selection(line, char, line, char);
-}
-
-function writeText(contents: string[]): UserInteraction {
-
-  const waiter = new Waiter(10, () => {
-    return vscode.window.activeTextEditor?.document.getText() === contents.join("\n");
-  });
-  return combineInteractions(
-    cmd("cursorDownSelect"),
-    cmd("deleteLeft"),
-    cmd("type", { text: contents.join("\n") }),
-    waiter,
-  );
 }
 
 const FORMAT_DELAY = delay(100);
@@ -517,7 +504,66 @@ const testCases: TestCase[] = [
     },
   },
   {
-    name: "Formats onType for onTypeTriggerCharacter defaults to \\n if falsy",
+    name: "Formats onType for onTypeTriggerCharacters when not a whitespace character",
+    settings: defaultSettings({
+      onTypeTriggerCharacters: "f",
+    }),
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    ",
+    ],
+    stc: {
+      selections: [sel(4, 4)],
+      userInteractions: [
+        cmd("type", { text: "f" }),
+        FORMAT_DELAY,
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    f",
+      ],
+      expectedSelections: [sel(5, 5)],
+    },
+  },
+  {
+    name: "Formats onType for onTypeTriggerCharacters defaults to \\n if undefined",
+    // Note this test should be after a test that sets onTypeTriggerCharacters to not \n
+    // (otherwise don't know if previous test run sets it to \n, or this test)
+    settings: defaultSettings({
+      onTypeTriggerCharacters: undefined,
+    }),
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    stc: {
+      selections: [sel(3, 10)],
+      userInteractions: [
+        cmd("type", { text: "\n" }),
+        FORMAT_DELAY,
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    ",
+      ],
+      expectedSelections: [sel(5, 4)],
+    },
+  },
+  {
+    name: "Formats onType for onTypeTriggerCharacters defaults to \\n if empty string",
     settings: defaultSettings({
       onTypeTriggerCharacters: "",
     }),

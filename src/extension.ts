@@ -93,7 +93,6 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     console.log(`AI: ${JSON.stringify(config.get("autoImports"))}`);
     console.log(`OT: ${JSON.stringify(config.get("onTypeTriggerCharacters"))}`);
 
-    // TODO: What happens if user sets this to undefined?
     const otc = config.get<string>("onTypeTriggerCharacters", "");
 
     if (this.settings?.onTypeRegistration) {
