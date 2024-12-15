@@ -46,7 +46,7 @@ without any interruption to your development flow.
 
   // Add the following setting if you want to specify your own list
   // of auto-import variables.
-  // The ones included below are all include by default.
+  // The ones listed below are all included by default.
   "very-import-ant.autoImports": [
     {
       "variable": "pd",
