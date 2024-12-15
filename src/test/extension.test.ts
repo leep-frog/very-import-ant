@@ -707,6 +707,114 @@ const testCases: TestCase[] = [
       expectedSelections: [sel(6, 6)],
     },
   },
+  // Invalid import config tests
+  {
+    name: "Ignores invalid import rule if not used",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy np",
+        },
+      ],
+    }),
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    stc: {
+      userInteractions: [
+        FORMAT_DOC,
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+      ],
+      expectedSelections: [sel(1, 0)],
+    },
+  },
+  {
+    name: "Catches invalid import rule if used",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy np",
+        },
+      ],
+    }),
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = np",
+    ],
+    stc: {
+      userInteractions: [
+        FORMAT_DOC,
+      ],
+      expectedText: [
+        "",
+        "",
+        "def func():",
+        "    _ = np",
+      ],
+      expectedErrorMessages: [
+        `Failed to create import config: Error: Error: Expected ',', found name at byte range 13..15`,
+      ],
+    },
+  },
+  // Import spacing tests
+  {
+    name: "Catches invalid import rule if used",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "one",
+          import: "from numbers import one",
+        },
+        {
+          variable: "three",
+          import: "from numbers import trois as three",
+        },
+      ],
+    }),
+    fileContents: [
+      `"""docstring"""`,
+      "",
+      "from numbers import two",
+      "",
+      "def func():",
+      "    _ = one + three",
+    ],
+    stc: {
+      userInteractions: [
+        FORMAT_DOC,
+      ],
+      expectedText: [
+        `"""docstring"""`,
+        "from numbers import one, trois as three, two",
+        "",
+        "",
+        "def func():",
+        "    _ = one + three",
+      ],
+      expectedSelections: [sel(5, 19)],
+    },
+  },
 ];
 
 class SettingsUpdate implements UserInteraction {

@@ -76,8 +76,6 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   private reloadSettings(context: vscode.ExtensionContext): VeryImportantSettings {
     const config = vscode.workspace.getConfiguration("very-import-ant");
 
-    console.log(`CONFIG: ${JSON.stringify(config)}`);
-
     const autoImports: AutoImport[] = config.get<AutoImport[]>("autoImports", []);
 
     const autoImportMap: Map<string, string[]> = new Map<string, string[]>();
@@ -88,10 +86,6 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
         autoImportMap.set(autoImport.variable, [autoImport.import]);
       }
     }
-
-    console.log(`EN: ${JSON.stringify(config.get("format.enable"))}`);
-    console.log(`AI: ${JSON.stringify(config.get("autoImports"))}`);
-    console.log(`OT: ${JSON.stringify(config.get("onTypeTriggerCharacters"))}`);
 
     const otc = config.get<string>("onTypeTriggerCharacters", "");
 
@@ -146,12 +140,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     const text = document.getText();
 
-    console.log(`TEXT: ${JSON.stringify(text)}`);
-
     // Find all undefined variables
     const diagnostics: Diagnostic[] = LINT_CONFIG.check(text);
 
-    console.log(`DIAG: ${JSON.stringify(diagnostics)}`);
+    console.log(`ruff diagnosticts: ${JSON.stringify(diagnostics)}`);
 
     // Map all undefined variables to their imports (if included in settings)
     const importsToAdd = [...new Set(diagnostics.flatMap((diagnostic) => {
@@ -188,8 +180,6 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return vit.edits.at(0);
     }
 
-    console.log(`NEW TEXT: ${JSON.stringify(vit.text)}`);
-
     // Otherwise, replace the entire document, as vscode expects all TextEdit
     // objects to reference the original document's positions (not incremental).
     return [{
@@ -209,21 +199,25 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return;
     }
 
-    // TODO: try-catch here for invalid importsToAdd
-    const isortConfig = new Workspace({
-      lint: {
-        // TODO (maybe): add settings that allows additional import options
-        select: [
-          'I001',
-          'I002',
-        ],
-        isort: {
-          'required-imports': importsToAdd,
-          'lines-after-imports': 2,
-          'combine-as-imports': true,
+    let isortConfig;
+    try {
+      isortConfig = new Workspace({
+        lint: {
+          select: [
+            'I001',
+            'I002',
+          ],
+          isort: {
+            'required-imports': importsToAdd,
+            'lines-after-imports': 2,
+            'combine-as-imports': true,
+          },
         },
-      },
-    });
+      });
+    } catch (e) {
+      vscode.window.showErrorMessage(`Failed to create import config: ${e}`);
+      return;
+    }
 
     const diags: Diagnostic[] = isortConfig.check(vit.text);
 
