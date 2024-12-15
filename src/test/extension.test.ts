@@ -39,9 +39,29 @@ const FORMAT_DOC = combineInteractions(
 interface VeryImportConfig {
   onTypeTriggerCharacters?: string;
   enabled?: boolean;
+  undefinedAutoImports?: boolean;
+  autoImports?: {
+    variable: string;
+    import: string;
+  }[],
 }
 
 function defaultSettings(config?: VeryImportConfig) {
+
+  let opts = {};
+
+  if (config?.undefinedAutoImports) {
+    opts = {
+      ...opts,
+      "very-import-ant.autoImports": undefined,
+    };
+  } else if (config?.autoImports !== undefined) {
+    opts = {
+      ...opts,
+      "very-import-ant.autoImports": config.autoImports,
+    };
+  }
+
   return {
     "[python]": {
       "editor.formatOnType": true,
@@ -50,44 +70,7 @@ function defaultSettings(config?: VeryImportConfig) {
     "files.eol": "\n",
     "very-import-ant.format.enable": config?.enabled ?? true,
     "very-import-ant.onTypeTriggerCharacters": config?.onTypeTriggerCharacters,
-    "very-import-ant.autoImports": [
-      {
-        variable: "pd",
-        import: "import pandas as pd",
-      },
-      {
-        variable: "np",
-        import: "import numpy as np",
-      },
-      {
-        variable: "xr",
-        import: "import xarray as xr",
-      },
-      {
-        variable: "xrt",
-        import: "from xarray import testing as xrt",
-      },
-      {
-        variable: "alpha",
-        import: "from greece import a as alpha",
-      },
-      {
-        variable: "beta",
-        import: "from greece import b as beta",
-      },
-      {
-        variable: "multi",
-        import: "from pair import left",
-      },
-      {
-        variable: "multi",
-        import: "from pair import right",
-      },
-      {
-        variable: "multi",
-        import: "from another import multi",
-      },
-    ],
+    ...opts,
   };
 }
 
@@ -309,7 +292,18 @@ const testCases: TestCase[] = [
   },
   {
     name: "Recurs to fix import order for imports from same source",
-    settings: defaultSettings(),
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "alpha",
+          import: "from greece import a as alpha",
+        },
+        {
+          variable: "beta",
+          import: "from greece import b as beta",
+        },
+      ],
+    }),
     fileContents: [
       "def func():",
       "    _ = alpha",
@@ -334,7 +328,18 @@ const testCases: TestCase[] = [
   },
   {
     name: "Adds import to list",
-    settings: defaultSettings(),
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "alpha",
+          import: "from greece import a as alpha",
+        },
+        {
+          variable: "beta",
+          import: "from greece import b as beta",
+        },
+      ],
+    }),
     fileContents: [
       "from greece import b as beta",
       "",
@@ -360,7 +365,30 @@ const testCases: TestCase[] = [
   },
   {
     name: "Recurs with multiple imports",
-    settings: defaultSettings(),
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+        {
+          variable: "alpha",
+          import: "from greece import a as alpha",
+        },
+        {
+          variable: "beta",
+          import: "from greece import b as beta",
+        },
+      ],
+    }),
     fileContents: [
       "def func():",
       "    _ = alpha",
@@ -391,7 +419,22 @@ const testCases: TestCase[] = [
   },
   {
     name: "Works with multiple values for single alias",
-    settings: defaultSettings(),
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "multi",
+          import: "from pair import left",
+        },
+        {
+          variable: "multi",
+          import: "from pair import right",
+        },
+        {
+          variable: "multi",
+          import: "from another import multi",
+        },
+      ],
+    }),
     fileContents: [
       "def func():",
       "    _ = multi",

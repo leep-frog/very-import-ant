@@ -3,3 +3,7 @@ out/
 dist/
 coverage/
 .vscode-test/
+
+# These files are changed in each test
+src/test/test-workspace/.vscode/settings.json
+src/test/test-workspace/empty.py
