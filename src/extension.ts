@@ -16,8 +16,6 @@ const LINT_ERROR_REGEX = /^Undefined name `(.+)`$/;
 
 const RUFF_FORMAT_DEPTH_LIMIT = 5;
 
-const ALL_CHARACTERS = "\n`1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./~!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?";
-
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {

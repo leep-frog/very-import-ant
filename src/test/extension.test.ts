@@ -52,6 +52,7 @@ function defaultSettings(config?: VeryImportConfig) {
   return {
     "[python]": {
       "editor.formatOnType": true,
+      "editor.formatOnPaste": true,
       "editor.defaultFormatter": "groogle.very-import-ant",
     },
     "files.eol": "\n",
@@ -439,6 +440,41 @@ const testCases: TestCase[] = [
         "    _ = multi",
       ],
       expectedSelections: [sel(4, 0)],
+    },
+  },
+  {
+    name: "Formats onPaste",
+    settings: defaultSettings({
+      onTypeTriggerCharacters: "q",
+    }),
+    fileContents: [
+      "_ = np",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    ",
+    ],
+    stc: {
+      userInteractions: [
+        cmd("cursorTop"),
+        cmd("cursorEndSelect"),
+        cmd("editor.action.clipboardCutAction"),
+        cmd("cursorBottom"),
+        cmd("editor.action.clipboardPasteAction"),
+        FORMAT_DELAY,
+      ],
+      expectedText: [
+        "import numpy as np",
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    _ = np",
+      ],
+      expectedSelections: [sel(6, 10)],
+
     },
   },
   {
