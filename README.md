@@ -1,24 +1,43 @@
 # Very Import-ant (Fast, Customizable Auto-Imports)
 
-> TODO: Add a gif of this in action (vs language server flow)
-
-Existing Python language servers implement auto-importing, but with a few drawbacks:
+Existing Python language server extensions (e.g. Pylance) implement
+auto-importing fairly well, but with a few notable drawbacks:
 
 1. The auto-import functionality requires the language server to
 create a drop-down, which occasionally takes a while to load (frequently
-it would have been quicker to just add the import line myself).
+it would have been quicker for a user to navigate to the top of the
+file and just add the import line manually).
 
 1. The user has to accept a selection from the drop-down, which is an interruption
-to the coding flow (albeit a somewhat small one, but one nonetheless).
+to the typing flow (albeit a somewhat small one, but one nonetheless).
 
-1. Most (all?) of the existing Python language servers for VS Code
+1. Most (all?) of the existing Python language server extensions for VS Code
 (specifically Pylance) don't allow customizing auto-import aliases.
 Instead they only support a fixed set of ones (e.g. `pd` for pandas, `np` for
 numpy, etc.).
 
+1. Existing Python language server extensions only allow you to auto-import
+as you are typing. They currently do not automatically fix known undefined
+variables elsewhere in the file. No existing formatters appear to fully
+support this either.
+
 This extension aims to solve all of the above problems by providing
-functionality to automatically add imports while you are typing,
-without any interruption to your development flow.
+functionality to automatically add imports while you are typing and
+without *any* interruption to your development flow.
+
+## Examples
+
+### Add type annotation imports as you type
+
+![on-type-type-annotation](./docs/gifs/on-type-type-annotation.gif)
+
+### Add libraries as you type
+
+![on-type-library](./docs/gifs/on-type-library.gif)
+
+### Add imports on file save
+
+![on-save-type-annotations](./docs/gifs/on-save-type-annotation.gif)
 
 ## Setup
 
@@ -63,7 +82,31 @@ without any interruption to your development flow.
     {
       "variable": "xrt",
       "import": "from xarray import testing as xrt"
-    }
+    },
+    {
+      "variable": "Any",
+      "import": "from typing import Any"
+    },
+    {
+      "variable": "Callable",
+      "import": "from typing import Callable"
+    },
+    {
+      "variable": "Dict",
+      "import": "from typing import Dict"
+    },
+    {
+      "variable": "List",
+      "import": "from typing import List"
+    },
+    {
+      "variable": "Union",
+      "import": "from typing import Union"
+    },
+    {
+      "variable": "Optional",
+      "import": "from typing import Optional"
+    },
   ],
 }
 ```

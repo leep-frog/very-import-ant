@@ -55,6 +55,30 @@
             {
               "variable": "xrt",
               "import": "from xarray import testing as xrt"
+            },
+            {
+              "variable": "Any",
+              "import": "from typing import Any"
+            },
+            {
+              "variable": "Callable",
+              "import": "from typing import Callable"
+            },
+            {
+              "variable": "Dict",
+              "import": "from typing import Dict"
+            },
+            {
+              "variable": "List",
+              "import": "from typing import List"
+            },
+            {
+              "variable": "Union",
+              "import": "from typing import Union"
+            },
+            {
+              "variable": "Optional",
+              "import": "from typing import Optional"
             }
           ],
           "items": {
