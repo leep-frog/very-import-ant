@@ -44,6 +44,7 @@ without *any* interruption to your development flow.
 1. Install this extension
 
 1. Add the following to your `settings.json`:
+
 ```json
 {
   "[python]": {
@@ -116,3 +117,18 @@ without *any* interruption to your development flow.
 While this extension is a technically a formatter extension, it really only does
 one thing. In order to use this extension in conjunction with another formatter
 use the [Multiple Formatters Extension](https://marketplace.visualstudio.com/items?itemName=Jota0222.multi-formatter).
+
+## Contribute
+
+Feel free to
+[open issues](https://github.com/leep-frog/very-import-ant/issues) or
+[pull requests](https://github.com/leep-frog/very-import-ant/pulls),
+and I'll do my best to respond in a timely manner.
+
+## Appreciate
+
+I find it very rewarding to know that my projects made someone's day or
+developer life a little better. If you feel so inclined,
+[leave a review](https://marketplace.visualstudio.com/items?itemName=groogle.very-import-ant&ssr=false#review-details)
+or [buy my a coffee](https://paypal.me/sleepfrog) so I know my project helped
+you out!
