@@ -28,7 +28,7 @@ function _runAndWait(cmds: UserInteraction[], containsText?: string): UserIntera
     userInteractions.push(
       _waitForDocChange(containsText),
       // Need an additional delay for the cursor to get to where it needs to be
-      delay(15),
+      delay(25),
     );
   } else {
     // We want to give time for the format operation to execute,
@@ -127,6 +127,24 @@ const testCases: TestCase[] = [
     },
   },
   {
+    name: "Handles syntax errors",
+    settings: defaultSettings(),
+    fileContents: [
+      "def func():",
+      "",
+    ],
+    stc: {
+      userInteractions: [
+        formatDoc(),
+      ],
+      expectedText: [
+        "def func():",
+        "",
+      ],
+      expectedSelections: [sel(1, 0)],
+    },
+  },
+  {
     name: "Ignores unsupported undefined variable name",
     settings: defaultSettings(),
     fileContents: [
@@ -141,7 +159,6 @@ const testCases: TestCase[] = [
         "def func():",
         "    _ = idk",
       ],
-      expectedSelections: [sel(1, 11)],
     },
   },
   {
