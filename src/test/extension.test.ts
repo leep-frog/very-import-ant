@@ -871,17 +871,36 @@ const testCases: TestCase[] = [
   },
 ];
 
-class SettingsUpdate implements UserInteraction {
+class SettingsUpdate extends Waiter {
 
   private contents: any;
+  private noOpValue: string;
+  private initialized: boolean;
 
-  constructor(contents: any) {
+  constructor(contents: any, tcIdx: number) {
+    super(5, () => {
+      return vscode.workspace.getConfiguration('no-op').get('key') === this.noOpValue;
+    });
+
     this.contents = contents;
+    this.initialized = false;
+    this.noOpValue = `test-number-${tcIdx}`;
   }
 
   async do(): Promise<any> {
-    const settingsFile = startingFile(".vscode", "settings.json");
-    writeFileSync(settingsFile, JSON.stringify(this.contents, undefined, 2));
+    if (!this.initialized) {
+      this.initialized = true;
+      const settingsFile = startingFile(".vscode", "settings.json");
+
+      writeFileSync(settingsFile, JSON.stringify({
+        ...this.contents,
+        "no-op": {
+          "key": this.noOpValue,
+        },
+      }, undefined, 2));
+    }
+
+    return super.do();
   }
 }
 
@@ -900,8 +919,7 @@ suite('Extension Test Suite', () => {
       tc.stc.file = startingFile("empty.py");
       tc.stc.skipWorkspaceConfiguration = true;
       tc.stc.userInteractions = [
-        new SettingsUpdate(tc.settings),
-        delay(750),
+        new SettingsUpdate(tc.settings, idx),
         ...(tc.stc.userInteractions || []),
       ];
 
