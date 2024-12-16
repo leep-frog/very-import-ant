@@ -110,3 +110,9 @@ without *any* interruption to your development flow.
   ],
 }
 ```
+
+## Using with Other Formatters
+
+While this extension is a technically a formatter extension, it really only does
+one thing. In order to use this extension in conjunction with another formatter
+use the [Multiple Formatters Extension](https://marketplace.visualstudio.com/items?itemName=Jota0222.multi-formatter).
