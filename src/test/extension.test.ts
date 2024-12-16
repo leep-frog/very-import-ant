@@ -1,11 +1,7 @@
-import { cmd, combineInteractions, delay, SimpleTestCase, SimpleTestCaseProps, UserInteraction } from '@leep-frog/vscode-test-stubber';
+import { cmd, combineInteractions, delay, SimpleTestCase, SimpleTestCaseProps, UserInteraction, Waiter } from '@leep-frog/vscode-test-stubber';
 import { writeFileSync } from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
-
-// You can import and use all API from the 'vscode' module
-// as well as import your extension to test it
-// import * as myExtension from '../../extension';
 
 function startingFile(...filename: string[]) {
   return path.resolve(__dirname, "..", "..", "src", "test", "test-workspace", path.join(...filename));
@@ -15,13 +11,45 @@ function sel(line: number, char: number): vscode.Selection {
   return new vscode.Selection(line, char, line, char);
 }
 
-const FORMAT_DELAY = delay(100);
+const MAX_WAIT = 250;
 
-const FORMAT_DOC = combineInteractions(
-  // TODO: determine what this actually needs to wait for (apparently waiter above is not sufficient)
-  FORMAT_DELAY,
-  cmd("editor.action.formatDocument"),
-);
+function _waitForDocChange(containsText: string): UserInteraction {
+  return new Waiter(5, () => {
+    return !!(vscode.window.activeTextEditor?.document.getText().includes(containsText));
+  });
+}
+
+function _runAndWait(cmds: UserInteraction[], containsText?: string): UserInteraction {
+  const userInteractions: UserInteraction[] = [
+    ...cmds,
+  ];
+
+  if (containsText) {
+    userInteractions.push(
+      _waitForDocChange(containsText),
+      // Need an additional delay for the cursor to get to where it needs to be
+      delay(15),
+    );
+  } else {
+    // We want to give time for the format operation to execute,
+    // even if we expect no changes.
+    userInteractions.push(delay(MAX_WAIT));
+  }
+
+  return combineInteractions(...userInteractions);
+}
+
+function formatDoc(containsText?: string): UserInteraction {
+  return _runAndWait([cmd("editor.action.formatDocument")], containsText);
+}
+
+function formatOnType(typeText: string, containsText?: string): UserInteraction {
+  return _runAndWait([cmd("type", { text: typeText })], containsText);
+}
+
+function formatOnPaste(containsText?: string): UserInteraction {
+  return _runAndWait([cmd("editor.action.clipboardPasteAction")], containsText);
+}
 
 interface VeryImportConfig {
   onTypeTriggerCharacters?: string;
@@ -79,7 +107,7 @@ const testCases: TestCase[] = [
     fileContents: [],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc(),
       ],
       expectedText: [""],
       expectedErrorMessages: [
@@ -93,7 +121,7 @@ const testCases: TestCase[] = [
     fileContents: [],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc(),
       ],
       expectedText: [""],
     },
@@ -107,7 +135,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc(),
       ],
       expectedText: [
         "def func():",
@@ -127,7 +155,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -150,7 +178,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("pandas"),
       ],
       expectedText: [
         `"""Some docstring."""`,
@@ -171,7 +199,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -193,7 +221,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -221,7 +249,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("pandas"),
       ],
       expectedText: [
         "import numpy as np",
@@ -257,7 +285,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("pandas"),
       ],
       expectedText: [
         "import numpy as np",
@@ -300,7 +328,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("greece"),
       ],
       expectedText: [
         "from greece import a as alpha, b as beta",
@@ -338,7 +366,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("import a"),
       ],
       expectedText: [
         "from greece import a as alpha, b as beta",
@@ -387,7 +415,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("numpy"),
       ],
       expectedText: [
         "import numpy as np",
@@ -429,7 +457,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("pair"),
       ],
       expectedText: [
         "from another import multi",
@@ -461,8 +489,7 @@ const testCases: TestCase[] = [
         cmd("cursorEndSelect"),
         cmd("editor.action.clipboardCutAction"),
         cmd("cursorBottom"),
-        cmd("editor.action.clipboardPasteAction"),
-        FORMAT_DELAY,
+        formatOnPaste("numpy")
       ],
       expectedText: [
         "import numpy as np",
@@ -492,8 +519,7 @@ const testCases: TestCase[] = [
     stc: {
       selections: [sel(4, 4)],
       userInteractions: [
-        cmd("type", { text: "d" }),
-        FORMAT_DELAY,
+        formatOnType("d", "pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -525,8 +551,7 @@ const testCases: TestCase[] = [
     stc: {
       selections: [sel(3, 10)],
       userInteractions: [
-        cmd("type", { text: "\n" }),
-        FORMAT_DELAY,
+        formatOnType("\n", "pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -554,8 +579,7 @@ const testCases: TestCase[] = [
     stc: {
       selections: [sel(4, 4)],
       userInteractions: [
-        cmd("type", { text: "f" }),
-        FORMAT_DELAY,
+        formatOnType("f", "pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -584,8 +608,7 @@ const testCases: TestCase[] = [
     stc: {
       selections: [sel(3, 10)],
       userInteractions: [
-        cmd("type", { text: "\n" }),
-        FORMAT_DELAY,
+        formatOnType("\n", "pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -612,8 +635,7 @@ const testCases: TestCase[] = [
     stc: {
       selections: [sel(3, 10)],
       userInteractions: [
-        cmd("type", { text: "\n" }),
-        FORMAT_DELAY,
+        formatOnType("\n", "pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -641,8 +663,7 @@ const testCases: TestCase[] = [
     stc: {
       selections: [sel(4, 4)],
       userInteractions: [
-        cmd("type", { text: "d" }),
-        FORMAT_DELAY,
+        formatOnType("d", "pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -670,8 +691,7 @@ const testCases: TestCase[] = [
     stc: {
       selections: [sel(4, 5)],
       userInteractions: [
-        cmd("type", { text: "p" }),
-        FORMAT_DELAY,
+        formatOnType("p", "pandas"),
       ],
       expectedText: [
         "import numpy as np",
@@ -700,8 +720,7 @@ const testCases: TestCase[] = [
     stc: {
       selections: [sel(4, 5)],
       userInteractions: [
-        cmd("type", { text: "r" }),
-        FORMAT_DELAY,
+        formatOnType("r"),
       ],
       expectedText: [
         "",
@@ -728,8 +747,7 @@ const testCases: TestCase[] = [
     stc: {
       selections: [sel(4, 5)],
       userInteractions: [
-        cmd("type", { text: "r" }),
-        FORMAT_DELAY,
+        formatOnType("r", "pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -766,7 +784,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("pandas"),
       ],
       expectedText: [
         "import pandas as pd",
@@ -800,7 +818,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc(),
       ],
       expectedText: [
         "",
@@ -815,7 +833,7 @@ const testCases: TestCase[] = [
   },
   // Import spacing tests
   {
-    name: "Catches invalid import rule if used",
+    name: "Combines new and existing import statements",
     settings: defaultSettings({
       autoImports: [
         {
@@ -838,7 +856,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        FORMAT_DOC,
+        formatDoc("trois"),
       ],
       expectedText: [
         `"""docstring"""`,
@@ -883,7 +901,7 @@ suite('Extension Test Suite', () => {
       tc.stc.skipWorkspaceConfiguration = true;
       tc.stc.userInteractions = [
         new SettingsUpdate(tc.settings),
-        delay(500),
+        delay(750),
         ...(tc.stc.userInteractions || []),
       ];
 
