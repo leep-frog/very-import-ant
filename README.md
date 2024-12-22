@@ -44,79 +44,84 @@ without *any* interruption to your development flow.
 1. Install this extension
 
 1. Add the following to your `settings.json`:
+    ```json
+    {
+      "[python]": {
+        "editor.defaultFormatter": "groogle.very-import-ant",
 
-```json
-{
-  "[python]": {
-    "editor.defaultFormatter": "groogle.very-import-ant",
+        // If you want the imports to be added as you type
+        "editor.formatOnType": true,
+        // If you want the imports to be added only when you save the file
+        "editor.formatOnSave": true,
+        // If you want the imports to be added whenever you paste something into your editor
+        "editor.formatOnPaste": true,
+      },
 
-    // If you want the imports to be added as you type
-    "editor.formatOnType": true,
-    // If you want the imports to be added only when you save the file
-    "editor.formatOnSave": true,
-    // If you want the imports to be added whenever you paste something into your editor
-    "editor.formatOnPaste": true,
-  },
+      // If editor.formatOnType is true, these characters will be all characters
+      // that trigger an import check/addition. It is recommended to make this
+      // whitespace characters + the last letters of all imported variables
+      // in the autoImports.variables setting (see below).
+      "very-import-ant.onTypeTriggerCharacters": "\n \tdprt",
 
-  // If editor.formatOnType is true, these characters will be all characters
-  // that trigger an import check/addition. It is recommended to make this
-  // whitespace characters + the last letters of all imported variables
-  // in the autoImports.variables setting (see below).
-  "very-import-ant.onTypeTriggerCharacters": "\n \tdprt",
+      // Add the following setting if you want to specify your own list
+      // of auto-import variables.
+      // The ones listed below are all included by default.
+      "very-import-ant.autoImports": [
+        {
+          "variable": "pd",
+          "import": "import pandas as pd"
+        },
+        {
+          "variable": "np",
+          "import": "import numpy as np"
+        },
+        {
+          "variable": "xr",
+          "import": "import xarray as xr"
+        },
+        {
+          "variable": "xrt",
+          "import": "from xarray import testing as xrt"
+        },
+        {
+          "variable": "Any",
+          "import": "from typing import Any"
+        },
+        {
+          "variable": "Callable",
+          "import": "from typing import Callable"
+        },
+        {
+          "variable": "Dict",
+          "import": "from typing import Dict"
+        },
+        {
+          "variable": "List",
+          "import": "from typing import List"
+        },
+        {
+          "variable": "Union",
+          "import": "from typing import Union"
+        },
+        {
+          "variable": "Optional",
+          "import": "from typing import Optional"
+        },
+      ],
+    }
+    ```
 
-  // Add the following setting if you want to specify your own list
-  // of auto-import variables.
-  // The ones listed below are all included by default.
-  "very-import-ant.autoImports": [
-    {
-      "variable": "pd",
-      "import": "import pandas as pd"
-    },
-    {
-      "variable": "np",
-      "import": "import numpy as np"
-    },
-    {
-      "variable": "xr",
-      "import": "import xarray as xr"
-    },
-    {
-      "variable": "xrt",
-      "import": "from xarray import testing as xrt"
-    },
-    {
-      "variable": "Any",
-      "import": "from typing import Any"
-    },
-    {
-      "variable": "Callable",
-      "import": "from typing import Callable"
-    },
-    {
-      "variable": "Dict",
-      "import": "from typing import Dict"
-    },
-    {
-      "variable": "List",
-      "import": "from typing import List"
-    },
-    {
-      "variable": "Union",
-      "import": "from typing import Union"
-    },
-    {
-      "variable": "Optional",
-      "import": "from typing import Optional"
-    },
-  ],
-}
-```
+1. [Only relevant if `editor.formatOnType` is true]: Ensure Pylance doesn't hijack on-type formatting by following the instructions [here](./docs/troubleshooting.md#editorformatontype-not-working).
 
 ## Using with Other Formatters
 
 While this extension is a technically a formatter extension, it really only does
 one thing. In order to use this extension in conjunction with another formatter
 use the [Multiple Formatters Extension](https://marketplace.visualstudio.com/items?itemName=Jota0222.multi-formatter).
+
+## Troubleshooting
+
+See [the troubleshooting doc](./docs/troubleshooting.md) for info on known issues and fixes.
 
 ## Contribute
 
