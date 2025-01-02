@@ -121,6 +121,6 @@
   },
   "dependencies": {
     "@astral-sh/ruff-wasm-nodejs": "^0.8.5",
-    "@leep-frog/vscode-test-stubber": "^1.14.0"
+    "@leep-frog/vscode-test-stubber": "^2.0.2"
   }
 }
