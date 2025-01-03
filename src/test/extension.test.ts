@@ -148,9 +148,11 @@ const testCases: TestCase[] = [
         formatDoc(),
       ],
       expectedText: [""],
-      expectedErrorMessages: [
-        'The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings',
-      ],
+      errorMessage: {
+        expectedMessages: [
+          'The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings',
+        ],
+      }
     },
   },
   {
@@ -907,9 +909,11 @@ const testCases: TestCase[] = [
         "def func():",
         "    _ = np",
       ],
-      expectedErrorMessages: [
-        `Failed to create import config: Error: Error: Expected ',', found name at byte range 13..15`,
-      ],
+      errorMessage: {
+        expectedMessages: [
+          `Failed to create import config: Error: Error: Expected ',', found name at byte range 13..15`,
+        ],
+      }
     },
   },
   // Import spacing tests
@@ -1102,7 +1106,9 @@ suite('Extension Test Suite', () => {
         writeFileSync(startingFile("empty.py"), tc.fileContents.join("\n"));
         tc.stc.file = startingFile("empty.py");
       }
-      tc.stc.skipWorkspaceConfiguration = true;
+      tc.stc.workspaceConfiguration = {
+        skip: true,
+      };
       tc.stc.userInteractions = [
         new SettingsUpdate(tc.settings, idx),
         ...(tc.stc.userInteractions || []),
