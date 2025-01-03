@@ -13,6 +13,36 @@ function sel(line: number, char: number): vscode.Selection {
 
 const MAX_WAIT = 250;
 
+function getUri(...filename: string[]): vscode.Uri {
+  const p = path.resolve("..", "..", "src", "test", "test-workspace", path.join(...filename));
+  return vscode.Uri.file(p);
+}
+
+function openTestWorkspaceFile(...filename: string[]): UserInteraction {
+  return cmd("vscode.open", getUri(...filename));
+}
+
+function notebookText(text: string): string {
+  return JSON.stringify({
+    cells: [
+      {
+        cell_type: "code",
+        execution_count: null,
+        metadata: {},
+        outputs: [],
+        source: text,
+      },
+    ],
+    metadata: {
+      language_info: {
+        name: "python"
+      },
+    },
+    nbformat: 4,
+    nbformat_minor: 2
+  });
+}
+
 function _waitForDocChange(containsText: string): UserInteraction {
   return new Waiter(5, () => {
     return !!(vscode.window.activeTextEditor?.document.getText().includes(containsText));
@@ -39,8 +69,11 @@ function _runAndWait(cmds: UserInteraction[], containsText?: string): UserIntera
   return combineInteractions(...userInteractions);
 }
 
-function formatDoc(containsText?: string): UserInteraction {
-  return _runAndWait([cmd("editor.action.formatDocument")], containsText);
+function formatDoc(props?: {
+  containsText?: string;
+  notebook?: boolean;
+}): UserInteraction {
+  return _runAndWait([cmd(props?.notebook ? "notebook.format" : "editor.action.formatDocument")], props?.containsText);
 }
 
 function formatOnType(typeText: string, containsText?: string): UserInteraction {
@@ -81,11 +114,15 @@ function defaultSettings(config?: VeryImportConfig) {
     "[python]": {
       "editor.formatOnType": true,
       "editor.formatOnPaste": true,
+      "editor.formatOnSave": true,
       "editor.defaultFormatter": "groogle.very-import-ant",
     },
     "files.eol": "\n",
     "very-import-ant.format.enable": config?.enabled ?? true,
     "very-import-ant.onTypeTriggerCharacters": config?.onTypeTriggerCharacters,
+    "notebook.defaultFormatter": "groogle.very-import-ant",
+    "notebook.formatOnCellExecution": true,
+    "notebook.formatOnSave.enabled": true,
     ...opts,
   };
 }
@@ -96,6 +133,7 @@ interface TestCase {
   fileContents: string[];
   stc: SimpleTestCaseProps;
   runSolo?: boolean;
+  notebook?: boolean;
 }
 
 
@@ -172,7 +210,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("pandas"),
+        formatDoc({ containsText: "pandas" }),
       ],
       expectedText: [
         "import pandas as pd",
@@ -195,7 +233,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("pandas"),
+        formatDoc({ containsText: "pandas" }),
       ],
       expectedText: [
         `"""Some docstring."""`,
@@ -216,7 +254,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("pandas"),
+        formatDoc({ containsText: "pandas" }),
       ],
       expectedText: [
         "import pandas as pd",
@@ -238,7 +276,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("pandas"),
+        formatDoc({ containsText: "pandas" }),
       ],
       expectedText: [
         "import pandas as pd",
@@ -266,7 +304,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("pandas"),
+        formatDoc({ containsText: "pandas" }),
       ],
       expectedText: [
         "import numpy as np",
@@ -302,7 +340,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("pandas"),
+        formatDoc({ containsText: "pandas" }),
       ],
       expectedText: [
         "import numpy as np",
@@ -345,7 +383,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("greece"),
+        formatDoc({ containsText: "greece" }),
       ],
       expectedText: [
         "from greece import a as alpha, b as beta",
@@ -383,7 +421,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("import a"),
+        formatDoc({ containsText: "import a" }),
       ],
       expectedText: [
         "from greece import a as alpha, b as beta",
@@ -432,7 +470,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("numpy"),
+        formatDoc({ containsText: "numpy" }),
       ],
       expectedText: [
         "import numpy as np",
@@ -474,7 +512,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("pair"),
+        formatDoc({ containsText: "pair" }),
       ],
       expectedText: [
         "from another import multi",
@@ -485,6 +523,33 @@ const testCases: TestCase[] = [
         "    _ = multi",
       ],
       expectedSelections: [sel(4, 0)],
+    },
+  },
+  {
+    name: "Formats onSave",
+    settings: defaultSettings(),
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    stc: {
+      userInteractions: [
+        cmd("workbench.action.files.save"),
+        _waitForDocChange("pandas"),
+        // Need to wait a little bit longer to ensure the save action completes
+        // after the formatting step runs (since the above only waits for the formatting to occur).
+        delay(25),
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+      ],
+      expectedSelections: [sel(1, 0)],
     },
   },
   {
@@ -518,7 +583,6 @@ const testCases: TestCase[] = [
         "    _ = np",
       ],
       expectedSelections: [sel(6, 10)],
-
     },
   },
   {
@@ -801,7 +865,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("pandas"),
+        formatDoc({ containsText: "pandas" }),
       ],
       expectedText: [
         "import pandas as pd",
@@ -873,7 +937,7 @@ const testCases: TestCase[] = [
     ],
     stc: {
       userInteractions: [
-        formatDoc("trois"),
+        formatDoc({ containsText: "trois" }),
       ],
       expectedText: [
         `"""docstring"""`,
@@ -886,6 +950,103 @@ const testCases: TestCase[] = [
       expectedSelections: [sel(5, 19)],
     },
   },
+  // Notebook tests
+  {
+    name: "Adds import for notebook",
+    settings: defaultSettings(),
+    notebook: true,
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    stc: {
+      userInteractions: [
+        formatDoc({
+          containsText: "pandas",
+          notebook: true,
+        }),
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+      ],
+      expectedSelections: [sel(1, 0)],
+    },
+  },
+  {
+    name: "Imports all built-in imports for notebook",
+    settings: defaultSettings(),
+    // runSolo: true,
+    fileContents: [
+      "def func():",
+      "    _ = pd",
+      "    arr = np.array()",
+      "    da = xr.DataArray()",
+      "    xrt.assert_equal(da, da)",
+      // Add some duplicates too
+      "    other = np.array()",
+      "    another = pd.DataFrame()",
+    ],
+    notebook: true,
+    stc: {
+      userInteractions: [
+        formatDoc({
+          containsText: "pandas",
+          notebook: true,
+        }),
+      ],
+      expectedText: [
+        "import numpy as np",
+        "import pandas as pd",
+        "import xarray as xr",
+        "from xarray import testing as xrt",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "    arr = np.array()",
+        "    da = xr.DataArray()",
+        "    xrt.assert_equal(da, da)",
+        // Add some duplicates too
+        "    other = np.array()",
+        "    another = pd.DataFrame()",
+      ],
+      expectedSelections: [sel(6, 0)],
+    },
+  },
+  {
+    name: "Formats notebook onSave",
+    settings: defaultSettings(),
+    notebook: true,
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "",
+    ],
+    stc: {
+      userInteractions: [
+        cmd("workbench.action.files.save"),
+        _waitForDocChange("pandas"),
+      ],
+      expectedText: [
+        "import pandas as pd",
+        "",
+        "",
+        "def func():",
+        "    _ = pd",
+        "",
+      ],
+      expectedSelections: [sel(1, 0)],
+    },
+  },
+  /* Useful for commenting out tests. */
 ];
 
 class SettingsUpdate extends Waiter {
@@ -930,10 +1091,17 @@ suite('Extension Test Suite', () => {
 
       console.log(`========= Starting test: ${tc.name}`);
 
-      writeFileSync(startingFile("empty.py"), tc.fileContents.join("\n"));
-
-      // Add reset command
-      tc.stc.file = startingFile("empty.py");
+      if (tc.notebook) {
+        writeFileSync(startingFile("simple.ipynb"), notebookText(tc.fileContents.join("\n")));
+        tc.stc.userInteractions = [
+          openTestWorkspaceFile("simple.ipynb"),
+          _waitForDocChange(tc.fileContents.join("\n")),
+          ...(tc.stc.userInteractions || []),
+        ];
+      } else {
+        writeFileSync(startingFile("empty.py"), tc.fileContents.join("\n"));
+        tc.stc.file = startingFile("empty.py");
+      }
       tc.stc.skipWorkspaceConfiguration = true;
       tc.stc.userInteractions = [
         new SettingsUpdate(tc.settings, idx),

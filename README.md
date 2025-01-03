@@ -46,6 +46,17 @@ without *any* interruption to your development flow.
 1. Add the following to your `settings.json`:
     ```json
     {
+
+      // Setting to enable this formatter
+      "very-import-ant.format.enable": true,
+
+      // If editor.formatOnType is true, these characters will be all characters
+      // that trigger an import check/addition. It is recommended to make this
+      // whitespace characters + the last letters of all imported variables
+      // in the autoImports.variables setting (see below).
+      "very-import-ant.onTypeTriggerCharacters": "\n \tdprt",
+
+      // Python settings
       "[python]": {
         "editor.defaultFormatter": "groogle.very-import-ant",
 
@@ -57,11 +68,10 @@ without *any* interruption to your development flow.
         "editor.formatOnPaste": true,
       },
 
-      // If editor.formatOnType is true, these characters will be all characters
-      // that trigger an import check/addition. It is recommended to make this
-      // whitespace characters + the last letters of all imported variables
-      // in the autoImports.variables setting (see below).
-      "very-import-ant.onTypeTriggerCharacters": "\n \tdprt",
+      // Notebook settings
+      "notebook.defaultFormatter": "groogle.very-import-ant",
+      "notebook.formatOnCellExecution": true,
+      "notebook.formatOnSave.enabled": true,
 
       // Add the following setting if you want to specify your own list
       // of auto-import variables.

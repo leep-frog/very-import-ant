@@ -16,6 +16,13 @@ const LINT_ERROR_REGEX = /^Undefined name `(.+)`$/;
 
 const RUFF_FORMAT_DEPTH_LIMIT = 5;
 
+function documentSelector(): vscode.DocumentSelector {
+  return {
+    language: "python",
+    // No scheme because we want to format regular python files as well as notebooks
+  };
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -23,15 +30,9 @@ export function activate(context: vscode.ExtensionContext) {
   const vif = new VeryImportantFormatter(context);
 
   context.subscriptions.push(
-    vscode.languages.registerDocumentFormattingEditProvider({
-      language: "python",
-      scheme: "file",
-    }, vif),
+    vscode.languages.registerDocumentFormattingEditProvider(documentSelector(), vif),
 
-    vscode.languages.registerDocumentRangeFormattingEditProvider({
-      language: "python",
-      scheme: "file",
-    }, vif),
+    vscode.languages.registerDocumentRangeFormattingEditProvider(documentSelector(), vif),
 
     // Handle settings updates
     vscode.workspace.onDidChangeConfiguration(e => {
@@ -91,10 +92,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       this.settings.onTypeRegistration.dispose();
     }
 
-    const reg = vscode.languages.registerOnTypeFormattingEditProvider({
-      language: "python",
-      scheme: "file",
-    }, this, otc.at(0) || "\n", ...otc.slice(1));
+    const reg = vscode.languages.registerOnTypeFormattingEditProvider(documentSelector(), this, otc.at(0) || "\n", ...otc.slice(1));
 
     context.subscriptions.push(reg);
 
