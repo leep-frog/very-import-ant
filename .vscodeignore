@@ -3,6 +3,8 @@
 src/
 out/
 coverage/
+node_modules/
+docs/
 .gitignore
 .yarnrc
 vsc-extension-quickstart.md
