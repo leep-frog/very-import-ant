@@ -127,11 +127,10 @@ function defaultSettings(config?: VeryImportConfig) {
   };
 }
 
-interface TestCase {
+interface TestCase extends SimpleTestCaseProps {
   name: string;
   settings: any;
   fileContents: string[];
-  stc: SimpleTestCaseProps;
   runSolo?: boolean;
   notebook?: boolean;
 }
@@ -143,28 +142,24 @@ const testCases: TestCase[] = [
     name: "Fails if disabled",
     settings: defaultSettings({ enabled: false }),
     fileContents: [],
-    stc: {
-      userInteractions: [
-        formatDoc(),
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [""],
+    errorMessage: {
+      expectedMessages: [
+        'The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings',
       ],
-      expectedText: [""],
-      errorMessage: {
-        expectedMessages: [
-          'The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings',
-        ],
-      }
-    },
+    }
   },
   {
     name: "Handles empty file",
     settings: defaultSettings(),
     fileContents: [],
-    stc: {
-      userInteractions: [
-        formatDoc(),
-      ],
-      expectedText: [""],
-    },
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [""],
   },
   {
     name: "Handles syntax errors",
@@ -173,16 +168,14 @@ const testCases: TestCase[] = [
       "def func():",
       "",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc(),
-      ],
-      expectedText: [
-        "def func():",
-        "",
-      ],
-      expectedSelections: [sel(1, 0)],
-    },
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "def func():",
+      "",
+    ],
+    expectedSelections: [sel(1, 0)],
   },
   {
     name: "Ignores unsupported undefined variable name",
@@ -191,15 +184,13 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = idk",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc(),
-      ],
-      expectedText: [
-        "def func():",
-        "    _ = idk",
-      ],
-    },
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "def func():",
+      "    _ = idk",
+    ],
   },
   {
     name: "Adds import for single supported variable when indentation is included",
@@ -210,19 +201,17 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "pandas" }),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-      ],
-      expectedSelections: [sel(4, 10)],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(4, 10)],
   },
   {
     name: "Adds import when module doc included",
@@ -233,19 +222,17 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "pandas" }),
-      ],
-      expectedText: [
-        `"""Some docstring."""`,
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-      ],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      `"""Some docstring."""`,
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
   },
   {
     name: "Adds import for single supported variable",
@@ -254,19 +241,17 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "pandas" }),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-      ],
-      expectedSelections: [sel(3, 0)],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
   },
   {
     name: "Adds single import for multiple undefined refs",
@@ -276,20 +261,18 @@ const testCases: TestCase[] = [
       "    _ = pd",
       "    df = pd.DataFrame",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "pandas" }),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    df = pd.DataFrame",
-      ],
-      expectedSelections: [sel(3, 0)],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    df = pd.DataFrame",
+    ],
+    expectedSelections: [sel(3, 0)],
   },
   {
     name: "Imports all built-in imports",
@@ -304,28 +287,26 @@ const testCases: TestCase[] = [
       "    other = np.array()",
       "    another = pd.DataFrame()",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "pandas" }),
-      ],
-      expectedText: [
-        "import numpy as np",
-        "import pandas as pd",
-        "import xarray as xr",
-        "from xarray import testing as xrt",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    arr = np.array()",
-        "    da = xr.DataArray()",
-        "    xrt.assert_equal(da, da)",
-        // Add some duplicates too
-        "    other = np.array()",
-        "    another = pd.DataFrame()",
-      ],
-      expectedSelections: [sel(6, 0)],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      "import numpy as np",
+      "import pandas as pd",
+      "import xarray as xr",
+      "from xarray import testing as xrt",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    arr = np.array()",
+      "    da = xr.DataArray()",
+      "    xrt.assert_equal(da, da)",
+      // Add some duplicates too
+      "    other = np.array()",
+      "    another = pd.DataFrame()",
+    ],
+    expectedSelections: [sel(6, 0)],
   },
   {
     name: "Adds auto-imports from settings",
@@ -340,28 +321,26 @@ const testCases: TestCase[] = [
       "    other = np.array()",
       "    another = pd.DataFrame()",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "pandas" }),
-      ],
-      expectedText: [
-        "import numpy as np",
-        "import pandas as pd",
-        "import xarray as xr",
-        "from xarray import testing as xrt",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    arr = np.array()",
-        "    da = xr.DataArray()",
-        "    xrt.assert_equal(da, da)",
-        // Add some duplicates too
-        "    other = np.array()",
-        "    another = pd.DataFrame()",
-      ],
-      expectedSelections: [sel(6, 0)],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      "import numpy as np",
+      "import pandas as pd",
+      "import xarray as xr",
+      "from xarray import testing as xrt",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    arr = np.array()",
+      "    da = xr.DataArray()",
+      "    xrt.assert_equal(da, da)",
+      // Add some duplicates too
+      "    other = np.array()",
+      "    another = pd.DataFrame()",
+    ],
+    expectedSelections: [sel(6, 0)],
   },
   {
     name: "Recurs to fix import order for imports from same source",
@@ -383,21 +362,19 @@ const testCases: TestCase[] = [
       "    k = beta + 2",
       "    return beta - alpha",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "greece" }),
-      ],
-      expectedText: [
-        "from greece import a as alpha, b as beta",
-        "",
-        "",
-        "def func():",
-        "    _ = alpha",
-        "    k = beta + 2",
-        "    return beta - alpha",
-      ],
-      expectedSelections: [sel(3, 0)],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "greece" }),
+    ],
+    expectedText: [
+      "from greece import a as alpha, b as beta",
+      "",
+      "",
+      "def func():",
+      "    _ = alpha",
+      "    k = beta + 2",
+      "    return beta - alpha",
+    ],
+    expectedSelections: [sel(3, 0)],
   },
   {
     name: "Adds import to list",
@@ -421,20 +398,18 @@ const testCases: TestCase[] = [
       "    k = beta + 2",
       "    return beta - alpha",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "import a" }),
-      ],
-      expectedText: [
-        "from greece import a as alpha, b as beta",
-        "",
-        "",
-        "def func():",
-        "    _ = alpha",
-        "    k = beta + 2",
-        "    return beta - alpha",
-      ],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "import a" }),
+    ],
+    expectedText: [
+      "from greece import a as alpha, b as beta",
+      "",
+      "",
+      "def func():",
+      "    _ = alpha",
+      "    k = beta + 2",
+      "    return beta - alpha",
+    ],
   },
   {
     name: "Recurs with multiple imports",
@@ -470,25 +445,23 @@ const testCases: TestCase[] = [
       "    xr.DataArray(alpha, beta)",
       "    return beta - alpha",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "numpy" }),
-      ],
-      expectedText: [
-        "import numpy as np",
-        "import xarray as xr",
-        "from greece import a as alpha, b as beta",
-        "",
-        "",
-        "def func():",
-        "    _ = alpha",
-        "    k = beta + 2",
-        "    np.array(alpha, beta)",
-        "    xr.DataArray(alpha, beta)",
-        "    return beta - alpha",
-      ],
-      expectedSelections: [sel(5, 0)],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "numpy" }),
+    ],
+    expectedText: [
+      "import numpy as np",
+      "import xarray as xr",
+      "from greece import a as alpha, b as beta",
+      "",
+      "",
+      "def func():",
+      "    _ = alpha",
+      "    k = beta + 2",
+      "    np.array(alpha, beta)",
+      "    xr.DataArray(alpha, beta)",
+      "    return beta - alpha",
+    ],
+    expectedSelections: [sel(5, 0)],
   },
   {
     name: "Works with multiple values for single alias",
@@ -512,20 +485,18 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = multi",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "pair" }),
-      ],
-      expectedText: [
-        "from another import multi",
-        "from pair import left, right",
-        "",
-        "",
-        "def func():",
-        "    _ = multi",
-      ],
-      expectedSelections: [sel(4, 0)],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "pair" }),
+    ],
+    expectedText: [
+      "from another import multi",
+      "from pair import left, right",
+      "",
+      "",
+      "def func():",
+      "    _ = multi",
+    ],
+    expectedSelections: [sel(4, 0)],
   },
   {
     name: "Formats onSave",
@@ -536,23 +507,21 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    stc: {
-      userInteractions: [
-        cmd("workbench.action.files.save"),
-        _waitForDocChange("pandas"),
-        // Need to wait a little bit longer to ensure the save action completes
-        // after the formatting step runs (since the above only waits for the formatting to occur).
-        delay(25),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-      ],
-      expectedSelections: [sel(1, 0)],
-    },
+    userInteractions: [
+      cmd("workbench.action.files.save"),
+      _waitForDocChange("pandas"),
+      // Need to wait a little bit longer to ensure the save action completes
+      // after the formatting step runs (since the above only waits for the formatting to occur).
+      delay(25),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
   },
   {
     name: "Formats onPaste",
@@ -567,25 +536,23 @@ const testCases: TestCase[] = [
       "    _ = pd",
       "    ",
     ],
-    stc: {
-      userInteractions: [
-        cmd("cursorTop"),
-        cmd("cursorEndSelect"),
-        cmd("editor.action.clipboardCutAction"),
-        cmd("cursorBottom"),
-        formatOnPaste("numpy")
-      ],
-      expectedText: [
-        "import numpy as np",
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    _ = np",
-      ],
-      expectedSelections: [sel(6, 10)],
-    },
+    userInteractions: [
+      cmd("cursorTop"),
+      cmd("cursorEndSelect"),
+      cmd("editor.action.clipboardCutAction"),
+      cmd("cursorBottom"),
+      formatOnPaste("numpy")
+    ],
+    expectedText: [
+      "import numpy as np",
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    _ = np",
+    ],
+    expectedSelections: [sel(6, 10)],
   },
   {
     name: "Formats onType for first of more_trigger_characters",
@@ -599,22 +566,20 @@ const testCases: TestCase[] = [
       "    _ = pd",
       "    ",
     ],
-    stc: {
-      selections: [sel(4, 4)],
-      userInteractions: [
-        formatOnType("d", "pandas"),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    d",
-      ],
-      expectedSelections: [sel(5, 5)],
+    selections: [sel(4, 4)],
+    userInteractions: [
+      formatOnType("d", "pandas"),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    d",
+    ],
+    expectedSelections: [sel(5, 5)],
 
-    },
   },
   {
     // Note, this test is after the more_trigger_characters because we want
@@ -631,21 +596,19 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    stc: {
-      selections: [sel(3, 10)],
-      userInteractions: [
-        formatOnType("\n", "pandas"),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    ",
-      ],
-      expectedSelections: [sel(5, 4)],
-    },
+    selections: [sel(3, 10)],
+    userInteractions: [
+      formatOnType("\n", "pandas"),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    ",
+    ],
+    expectedSelections: [sel(5, 4)],
   },
   {
     name: "Formats onType for onTypeTriggerCharacters when not a whitespace character",
@@ -659,21 +622,19 @@ const testCases: TestCase[] = [
       "    _ = pd",
       "    ",
     ],
-    stc: {
-      selections: [sel(4, 4)],
-      userInteractions: [
-        formatOnType("f", "pandas"),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    f",
-      ],
-      expectedSelections: [sel(5, 5)],
-    },
+    selections: [sel(4, 4)],
+    userInteractions: [
+      formatOnType("f", "pandas"),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    f",
+    ],
+    expectedSelections: [sel(5, 5)],
   },
   {
     name: "Formats onType for onTypeTriggerCharacters defaults to \\n if undefined",
@@ -688,21 +649,19 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    stc: {
-      selections: [sel(3, 10)],
-      userInteractions: [
-        formatOnType("\n", "pandas"),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    ",
-      ],
-      expectedSelections: [sel(5, 4)],
-    },
+    selections: [sel(3, 10)],
+    userInteractions: [
+      formatOnType("\n", "pandas"),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    ",
+    ],
+    expectedSelections: [sel(5, 4)],
   },
   {
     name: "Formats onType for onTypeTriggerCharacters defaults to \\n if empty string",
@@ -715,21 +674,19 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    stc: {
-      selections: [sel(3, 10)],
-      userInteractions: [
-        formatOnType("\n", "pandas"),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    ",
-      ],
-      expectedSelections: [sel(5, 4)],
-    },
+    selections: [sel(3, 10)],
+    userInteractions: [
+      formatOnType("\n", "pandas"),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    ",
+    ],
+    expectedSelections: [sel(5, 4)],
   },
   {
     name: "Formats onType for second of more_trigger_characters",
@@ -743,21 +700,19 @@ const testCases: TestCase[] = [
       "    _ = pd",
       "    ",
     ],
-    stc: {
-      selections: [sel(4, 4)],
-      userInteractions: [
-        formatOnType("d", "pandas"),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    d",
-      ],
-      expectedSelections: [sel(5, 5)],
-    },
+    selections: [sel(4, 4)],
+    userInteractions: [
+      formatOnType("d", "pandas"),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    d",
+    ],
+    expectedSelections: [sel(5, 5)],
   },
   {
     name: "Formats onType and includes newly added undefined variable",
@@ -771,22 +726,20 @@ const testCases: TestCase[] = [
       "    _ = pd",
       "    n",
     ],
-    stc: {
-      selections: [sel(4, 5)],
-      userInteractions: [
-        formatOnType("p", "pandas"),
-      ],
-      expectedText: [
-        "import numpy as np",
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    np",
-      ],
-      expectedSelections: [sel(6, 6)],
-    },
+    selections: [sel(4, 5)],
+    userInteractions: [
+      formatOnType("p", "pandas"),
+    ],
+    expectedText: [
+      "import numpy as np",
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    np",
+    ],
+    expectedSelections: [sel(6, 6)],
   },
   {
     name: "Does not format onType if not a trigger character",
@@ -800,20 +753,18 @@ const testCases: TestCase[] = [
       "    _ = pd",
       "    x",
     ],
-    stc: {
-      selections: [sel(4, 5)],
-      userInteractions: [
-        formatOnType("r"),
-      ],
-      expectedText: [
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    xr",
-      ],
-      expectedSelections: [sel(4, 6)],
-    },
+    selections: [sel(4, 5)],
+    userInteractions: [
+      formatOnType("r"),
+    ],
+    expectedText: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    xr",
+    ],
+    expectedSelections: [sel(4, 6)],
   },
   {
     name: "Works if first_trigger_character is a letter",
@@ -827,22 +778,20 @@ const testCases: TestCase[] = [
       "    _ = pd",
       "    x",
     ],
-    stc: {
-      selections: [sel(4, 5)],
-      userInteractions: [
-        formatOnType("r", "pandas"),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "import xarray as xr",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    xr",
-      ],
-      expectedSelections: [sel(6, 6)],
-    },
+    selections: [sel(4, 5)],
+    userInteractions: [
+      formatOnType("r", "pandas"),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "import xarray as xr",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    xr",
+    ],
+    expectedSelections: [sel(6, 6)],
   },
   // Invalid import config tests
   {
@@ -865,19 +814,17 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "pandas" }),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-      ],
-      expectedSelections: [sel(1, 0)],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
   },
   {
     name: "Catches invalid import rule if used",
@@ -899,22 +846,20 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = np",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc(),
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "",
+      "",
+      "def func():",
+      "    _ = np",
+    ],
+    errorMessage: {
+      expectedMessages: [
+        `Failed to create import config: Error: Error: Expected ',', found name at byte range 13..15`,
       ],
-      expectedText: [
-        "",
-        "",
-        "def func():",
-        "    _ = np",
-      ],
-      errorMessage: {
-        expectedMessages: [
-          `Failed to create import config: Error: Error: Expected ',', found name at byte range 13..15`,
-        ],
-      }
-    },
+    }
   },
   // Import spacing tests
   {
@@ -939,20 +884,18 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = one + three",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({ containsText: "trois" }),
-      ],
-      expectedText: [
-        `"""docstring"""`,
-        "from numbers import one, trois as three, two",
-        "",
-        "",
-        "def func():",
-        "    _ = one + three",
-      ],
-      expectedSelections: [sel(5, 19)],
-    },
+    userInteractions: [
+      formatDoc({ containsText: "trois" }),
+    ],
+    expectedText: [
+      `"""docstring"""`,
+      "from numbers import one, trois as three, two",
+      "",
+      "",
+      "def func():",
+      "    _ = one + three",
+    ],
+    expectedSelections: [sel(5, 19)],
   },
   // Notebook tests
   {
@@ -965,22 +908,20 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    stc: {
-      userInteractions: [
-        formatDoc({
-          containsText: "pandas",
-          notebook: true,
-        }),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-      ],
-      expectedSelections: [sel(1, 0)],
-    },
+    userInteractions: [
+      formatDoc({
+        containsText: "pandas",
+        notebook: true,
+      }),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
   },
   {
     name: "Imports all built-in imports for notebook",
@@ -997,31 +938,29 @@ const testCases: TestCase[] = [
       "    another = pd.DataFrame()",
     ],
     notebook: true,
-    stc: {
-      userInteractions: [
-        formatDoc({
-          containsText: "pandas",
-          notebook: true,
-        }),
-      ],
-      expectedText: [
-        "import numpy as np",
-        "import pandas as pd",
-        "import xarray as xr",
-        "from xarray import testing as xrt",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "    arr = np.array()",
-        "    da = xr.DataArray()",
-        "    xrt.assert_equal(da, da)",
-        // Add some duplicates too
-        "    other = np.array()",
-        "    another = pd.DataFrame()",
-      ],
-      expectedSelections: [sel(6, 0)],
-    },
+    userInteractions: [
+      formatDoc({
+        containsText: "pandas",
+        notebook: true,
+      }),
+    ],
+    expectedText: [
+      "import numpy as np",
+      "import pandas as pd",
+      "import xarray as xr",
+      "from xarray import testing as xrt",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    arr = np.array()",
+      "    da = xr.DataArray()",
+      "    xrt.assert_equal(da, da)",
+      // Add some duplicates too
+      "    other = np.array()",
+      "    another = pd.DataFrame()",
+    ],
+    expectedSelections: [sel(6, 0)],
   },
   {
     name: "Formats notebook onSave",
@@ -1034,21 +973,19 @@ const testCases: TestCase[] = [
       "    _ = pd",
       "",
     ],
-    stc: {
-      userInteractions: [
-        cmd("workbench.action.files.save"),
-        _waitForDocChange("pandas"),
-      ],
-      expectedText: [
-        "import pandas as pd",
-        "",
-        "",
-        "def func():",
-        "    _ = pd",
-        "",
-      ],
-      expectedSelections: [sel(1, 0)],
-    },
+    userInteractions: [
+      cmd("workbench.action.files.save"),
+      _waitForDocChange("pandas"),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "",
+    ],
+    expectedSelections: [sel(1, 0)],
   },
   /* Useful for commenting out tests. */
 ];
@@ -1097,25 +1034,25 @@ suite('Extension Test Suite', () => {
 
       if (tc.notebook) {
         writeFileSync(startingFile("simple.ipynb"), notebookText(tc.fileContents.join("\n")));
-        tc.stc.userInteractions = [
+        tc.userInteractions = [
           openTestWorkspaceFile("simple.ipynb"),
           _waitForDocChange(tc.fileContents.join("\n")),
-          ...(tc.stc.userInteractions || []),
+          ...(tc.userInteractions || []),
         ];
       } else {
         writeFileSync(startingFile("empty.py"), tc.fileContents.join("\n"));
-        tc.stc.file = startingFile("empty.py");
+        tc.file = startingFile("empty.py");
       }
-      tc.stc.workspaceConfiguration = {
+      tc.workspaceConfiguration = {
         skip: true,
       };
-      tc.stc.userInteractions = [
+      tc.userInteractions = [
         new SettingsUpdate(tc.settings, idx),
-        ...(tc.stc.userInteractions || []),
+        ...(tc.userInteractions || []),
       ];
 
       // Run test
-      await new SimpleTestCase(tc.stc).runTest().catch((e: any) => {
+      await new SimpleTestCase(tc).runTest().catch((e: any) => {
         throw e;
       });
     });
