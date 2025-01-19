@@ -101,7 +101,8 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild": "npm run esbuild-base -- --sourcemap && npm run cp-ruff",
+    "cp-ruff": "ts-node ./src/scripts/cp-ruff.ts",
     "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=bundled-out/extension.js --external:vscode --format=cjs --platform=node",
     "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
     "lint": "eslint src --fix --ext ts",
@@ -109,7 +110,7 @@
     "pretest": "npm run compile && npm run esbuild",
     "test": "vscode-test --coverage --coverageReporter lcov --coverageReporter html",
     "test-compile": "tsc -p ./",
-    "vscode:prepublish": "npm run esbuild-base -- --minify",
+    "vscode:prepublish": "npm run test && npm run esbuild-base -- --minify",
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
@@ -126,6 +127,7 @@
   },
   "dependencies": {
     "@astral-sh/ruff-wasm-nodejs": "^0.8.5",
-    "@leep-frog/vscode-test-stubber": "^2.0.2"
+    "@leep-frog/vscode-test-stubber": "^2.0.2",
+    "ts-node": "^10.9.2"
   }
 }
