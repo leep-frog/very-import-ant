@@ -3,6 +3,7 @@ out/
 dist/
 coverage/
 .vscode-test/
+bundled-out/
 
 # These files are changed in each test
 src/test/test-workspace/.vscode/settings.json
