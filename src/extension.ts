@@ -58,6 +58,7 @@ interface VeryImportantSettings {
   enabled: boolean;
   autoImports: Map<string, string[]>;
   onTypeRegistration: vscode.Disposable;
+  alwaysImport: string[];
 }
 
 class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, vscode.OnTypeFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
@@ -102,6 +103,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       enabled: config.get<boolean>("format.enable", false),
       autoImports: autoImportMap,
       onTypeRegistration: reg,
+      alwaysImport: config.get<string[]>("alwaysImport", []),
     };
   }
 
@@ -142,22 +144,26 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     console.log(`ruff diagnosticts: ${JSON.stringify(diagnostics)}`);
 
     // Map all undefined variables to their imports (if included in settings)
-    const importsToAdd = [...new Set(diagnostics.flatMap((diagnostic) => {
-      const match = LINT_ERROR_REGEX.exec(diagnostic.message);
+    const importsToAdd = [...new Set([
+      ...this.settings.alwaysImport,
+      ...new Set(diagnostics.flatMap((diagnostic) => {
 
-      const variableName = match?.at(1);
-      if (!variableName) {
-        // Ignore syntax errors
-        if (diagnostic.message.startsWith("SyntaxError")) {
+        const match = LINT_ERROR_REGEX.exec(diagnostic.message);
+
+        const variableName = match?.at(1);
+        if (!variableName) {
+          // Ignore syntax errors
+          if (diagnostic.message.startsWith("SyntaxError")) {
+            return [];
+          }
+
+          vscode.window.showErrorMessage(`Undefined variable could not be determined from error message (${JSON.stringify(diagnostic)})`);
           return [];
         }
 
-        vscode.window.showErrorMessage(`Undefined variable could not be determined from error message (${JSON.stringify(diagnostic)})`);
-        return [];
-      }
-
-      return this.settings.autoImports.get(variableName) || [];
-    }))];
+        return this.settings.autoImports.get(variableName) || [];
+      })),
+    ])];
 
     if (!importsToAdd.length) {
       return;

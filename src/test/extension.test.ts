@@ -92,6 +92,7 @@ interface VeryImportConfig {
     variable: string;
     import: string;
   }[],
+  alwaysImport?: string[];
 }
 
 function defaultSettings(config?: VeryImportConfig) {
@@ -119,6 +120,7 @@ function defaultSettings(config?: VeryImportConfig) {
     },
     "files.eol": "\n",
     "very-import-ant.format.enable": config?.enabled ?? true,
+    "very-import-ant.alwaysImport": config?.alwaysImport ?? [],
     "very-import-ant.onTypeTriggerCharacters": config?.onTypeTriggerCharacters,
     "notebook.defaultFormatter": "groogle.very-import-ant",
     "notebook.formatOnCellExecution": true,
@@ -897,6 +899,123 @@ const testCases: TestCase[] = [
     ],
     expectedSelections: [sel(5, 19)],
   },
+  // Always import tests
+  {
+    name: "adds single alwaysImport",
+    settings: defaultSettings({
+      alwaysImport: [
+        'from forever import ever',
+      ],
+    }),
+    fileContents: [
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "forever" }),
+    ],
+    expectedText: [
+      `from forever import ever`,
+      ``,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+    expectedSelections: [sel(3, 0)],
+  },
+  {
+    name: "adds single alwaysImport to combined import",
+    settings: defaultSettings({
+      alwaysImport: [
+        'from forever import ndever',
+      ],
+    }),
+    fileContents: [
+      `from forever import ever`,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "ndever" }),
+    ],
+    expectedText: [
+      `from forever import ever, ndever`,
+      ``,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+  },
+  {
+    name: "adds multiple alwaysImport",
+    settings: defaultSettings({
+      alwaysImport: [
+        'from forever import ndever',
+        'from something import elze',
+        'from france import wine',
+      ],
+    }),
+    fileContents: [
+      `from forever import ever`,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "ndever" }),
+    ],
+    expectedText: [
+      `from forever import ever, ndever`,
+      `from france import wine`,
+      `from something import elze`,
+      ``,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+  },
+  {
+    name: "works when alwaysImport and autoImports overlap",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          import: "from elsewhere import ndever",
+          variable: "ndever",
+        },
+      ],
+      alwaysImport: [
+        'from forever import ndever',
+      ],
+    }),
+    fileContents: [
+      ``,
+      `def one():`,
+      `    _ = ndever`,
+      `    return 1`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "ndever" }),
+    ],
+    expectedText: [
+      `from elsewhere import ndever`,
+      `from forever import ndever`,
+      ``,
+      ``,
+      `def one():`,
+      `    _ = ndever`,
+      `    return 1`,
+      ``,
+    ],
+    expectedSelections: [sel(3, 0)],
+  },
   // Notebook tests
   {
     name: "Adds import for notebook",
@@ -926,7 +1045,6 @@ const testCases: TestCase[] = [
   {
     name: "Imports all built-in imports for notebook",
     settings: defaultSettings(),
-    // runSolo: true,
     fileContents: [
       "def func():",
       "    _ = pd",

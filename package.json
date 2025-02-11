@@ -37,6 +37,13 @@
           "default": "\n",
           "type": "string"
         },
+        "very-import-ant.alwaysImport": {
+          "description": "List of import statements that should always be included",
+          "default": [
+            "from __future__ import annotations"
+          ],
+          "type": "array"
+        },
         "very-import-ant.autoImports": {
           "description": "The set of auto-imports to consider when formatting a python file",
           "type": "array",
