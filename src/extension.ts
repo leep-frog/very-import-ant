@@ -3,13 +3,12 @@ import * as vscode from 'vscode';
 import { Diagnostic, Workspace } from '@astral-sh/ruff-wasm-nodejs';
 import { merge } from './range-merge';
 
-const LINT_CONFIG = new Workspace({
-  lint: {
-    select: [
-      'F821',
-    ],
-  },
-});
+enum RuffCode {
+  UNUSED_IMPORT = 'F401',
+  UNDEFINED_NAME = 'F821',
+  UNSORTED_IMPORTS = 'I001',
+  MISSING_REQUIRED_IMPORT = 'I002',
+};
 
 const LINT_ERROR_REGEX = /^Undefined name `(.+)`$/;
 
@@ -52,6 +51,7 @@ interface VeryImportantSettings {
   autoImports: Map<string, string[]>;
   onTypeRegistration: vscode.Disposable;
   alwaysImport: string[];
+  removeUnusedImports: boolean;
 }
 
 class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, vscode.OnTypeFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
@@ -97,6 +97,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       autoImports: autoImportMap,
       onTypeRegistration: reg,
       alwaysImport: config.get<string[]>("alwaysImport", []),
+      removeUnusedImports: config.get<boolean>("removeUnusedImports", false),
     };
   }
 
@@ -132,14 +133,22 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     const text = document.getText();
 
     // Find all undefined variables
-    const diagnostics: Diagnostic[] = LINT_CONFIG.check(text);
+    const lint_config = new Workspace({
+      lint: {
+        select: [
+          RuffCode.UNDEFINED_NAME,
+          ...(this.settings.removeUnusedImports ? [RuffCode.UNUSED_IMPORT] : []),
+        ],
+      },
+    });
+    const diagnostics: Diagnostic[] = lint_config.check(text);
 
     console.log(`ruff diagnosticts: ${JSON.stringify(diagnostics)}`);
 
     // Map all undefined variables to their imports (if included in settings)
     const importsToAdd = [...new Set([
       ...this.settings.alwaysImport,
-      ...new Set(diagnostics.flatMap((diagnostic) => {
+      ...new Set(diagnostics.filter(diagnostic => diagnostic.code === RuffCode.UNDEFINED_NAME).flatMap((diagnostic) => {
 
         const match = LINT_ERROR_REGEX.exec(diagnostic.message);
 
@@ -158,7 +167,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       })),
     ])];
 
-    if (!importsToAdd.length) {
+    const hasUnusedImports = diagnostics.filter(diagnostic => diagnostic.code === RuffCode.UNUSED_IMPORT);
+    if (!hasUnusedImports && !importsToAdd.length) {
       return;
     }
 
@@ -198,8 +208,9 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       isortConfig = new Workspace({
         lint: {
           select: [
-            'I001',
-            'I002',
+            RuffCode.UNSORTED_IMPORTS,
+            RuffCode.MISSING_REQUIRED_IMPORT,
+            ...(this.settings.removeUnusedImports ? [RuffCode.UNUSED_IMPORT] : []),
           ],
           isort: {
             'required-imports': importsToAdd,
@@ -232,7 +243,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   private applyEdits(text: string, edits: vscode.TextEdit[]): string {
-    return edits.reduce(
+    // Edits are sorted from beginning to end of document, so apply in
+    // reverse order to ensure that (line, character) pointers always
+    // point to the proper positions.
+    return edits.reverse().reduce(
       (accumulatedText, edit) => this.applyEdit(accumulatedText, edit),
       text,
     );

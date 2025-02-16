@@ -2,7 +2,7 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "icon": "logo.png",
   "publisher": "groogle",
   "license": "MIT",
@@ -43,6 +43,11 @@
             "from __future__ import annotations"
           ],
           "type": "array"
+        },
+        "very-import-ant.removeUnusedImports": {
+          "description": "Whether or not to remove unused imports",
+          "default": false,
+          "type": "boolean"
         },
         "very-import-ant.autoImports": {
           "description": "The set of auto-imports to consider when formatting a python file",

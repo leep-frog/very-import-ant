@@ -45,18 +45,30 @@ function notebookText(text: string): string {
 
 function _waitForDocChange(containsText: string): UserInteraction {
   return new Waiter(5, () => {
-    return !!(vscode.window.activeTextEditor?.document.getText().includes(containsText));
-  });
+    return !!(vscode.window.activeTextEditor!.document.getText().includes(containsText));
+  }, MAX_WAIT / 5);
 }
 
-function _runAndWait(cmds: UserInteraction[], containsText?: string): UserInteraction {
+function _waitForDocUnchange(doesNotContainText: string): UserInteraction {
+  return new Waiter(5, () => {
+    return !(vscode.window.activeTextEditor!.document.getText().includes(doesNotContainText));
+  }, MAX_WAIT / 5);
+}
+
+function _runAndWait(cmds: UserInteraction[], containsText?: string, doesNotContainText?: string): UserInteraction {
   const userInteractions: UserInteraction[] = [
     ...cmds,
   ];
 
   if (containsText) {
+    userInteractions.push(_waitForDocChange(containsText));
+  }
+  if (doesNotContainText) {
+    userInteractions.push(_waitForDocUnchange(doesNotContainText));
+  }
+
+  if (containsText || doesNotContainText) {
     userInteractions.push(
-      _waitForDocChange(containsText),
       // Need an additional delay for the cursor to get to where it needs to be
       delay(25),
     );
@@ -71,9 +83,10 @@ function _runAndWait(cmds: UserInteraction[], containsText?: string): UserIntera
 
 function formatDoc(props?: {
   containsText?: string;
+  doesNotContainText?: string
   notebook?: boolean;
 }): UserInteraction {
-  return _runAndWait([cmd(props?.notebook ? "notebook.format" : "editor.action.formatDocument")], props?.containsText);
+  return _runAndWait([cmd(props?.notebook ? "notebook.format" : "editor.action.formatDocument")], props?.containsText, props?.doesNotContainText);
 }
 
 function formatOnType(typeText: string, containsText?: string): UserInteraction {
@@ -93,6 +106,7 @@ interface VeryImportConfig {
     import: string;
   }[],
   alwaysImport?: string[];
+  removeUnusedImports?: boolean;
 }
 
 function defaultSettings(config?: VeryImportConfig) {
@@ -120,6 +134,7 @@ function defaultSettings(config?: VeryImportConfig) {
     },
     "files.eol": "\n",
     "very-import-ant.format.enable": config?.enabled ?? true,
+    "very-import-ant.removeUnusedImports": config?.removeUnusedImports ?? false,
     "very-import-ant.alwaysImport": config?.alwaysImport ?? [],
     "very-import-ant.onTypeTriggerCharacters": config?.onTypeTriggerCharacters,
     "notebook.defaultFormatter": "groogle.very-import-ant",
@@ -1104,6 +1119,93 @@ const testCases: TestCase[] = [
       "",
     ],
     expectedSelections: [sel(1, 0)],
+  },
+  // Remove unused imports test
+  {
+    name: "removes unused import",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+    }),
+    fileContents: [
+      `import nunya`,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({ doesNotContainText: "nunya" }),
+    ],
+    expectedText: [
+      ``,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+    expectedSelections: [sel(3, 0)],
+  },
+  {
+    name: "doesn't remove unused alwaysImport",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+      alwaysImport: [
+        "import nunya",
+      ],
+    }),
+    fileContents: [
+      `import nunya`,
+      `import other`,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({ doesNotContainText: "other" }),
+    ],
+    expectedText: [
+      `import nunya`,
+      ``,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+  },
+  {
+    name: "does a little bit of everything",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+      alwaysImport: [
+        "import nunya",
+        "import another",
+      ],
+      autoImports: [
+        { variable: "pd", import: "import pandas as pd" },
+      ],
+    }),
+    fileContents: [
+      `import nunya`,
+      `import other`,
+      ``,
+      `def one():`,
+      `    _ = pd`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({ doesNotContainText: "other" }),
+    ],
+    expectedText: [
+      `import another`,
+      `import nunya`,
+      `import pandas as pd`,
+      ``,
+      ``,
+      `def one():`,
+      `    _ = pd`,
+      ``,
+    ],
   },
   /* Useful for commenting out tests. */
 ];
