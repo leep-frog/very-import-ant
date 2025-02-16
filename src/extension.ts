@@ -10,14 +10,20 @@ enum RuffCode {
   MISSING_REQUIRED_IMPORT = 'I002',
 };
 
+const ALL_SUPPORTED_SCHEMES = [
+  "file",
+  "vscode-notebook-cell",
+  "untitled",
+];
+
 const LINT_ERROR_REGEX = /^Undefined name `(.+)`$/;
 
 const RUFF_FORMAT_DEPTH_LIMIT = 5;
 
-function documentSelector(): vscode.DocumentSelector {
+function documentSelector(scheme: string): vscode.DocumentSelector {
   return {
     language: "python",
-    // No scheme because we want to format regular python files as well as notebooks
+    scheme: scheme,
   };
 }
 
@@ -28,10 +34,6 @@ export function activate(context: vscode.ExtensionContext) {
   const vif = new VeryImportantFormatter(context);
 
   context.subscriptions.push(
-    vscode.languages.registerDocumentFormattingEditProvider(documentSelector(), vif),
-
-    vscode.languages.registerDocumentRangeFormattingEditProvider(documentSelector(), vif),
-
     // Handle settings updates
     vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration("very-import-ant")) {
@@ -49,9 +51,9 @@ interface AutoImport {
 interface VeryImportantSettings {
   enabled: boolean;
   autoImports: Map<string, string[]>;
-  onTypeRegistration: vscode.Disposable;
   alwaysImport: string[];
   removeUnusedImports: boolean;
+  reloadableRegistrations: vscode.Disposable[];
 }
 
 class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, vscode.OnTypeFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
@@ -82,20 +84,33 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     const otc = config.get<string>("onTypeTriggerCharacters", "");
 
-    if (this.settings?.onTypeRegistration) {
-      this.settings.onTypeRegistration.dispose();
+    // this.settings can be undefined (when this is called on initialization)
+    // hence why we need the (`?` and `|| []`), otherwise the extensions fails
+    // without making much noise.
+    for (const registration of (this.settings?.reloadableRegistrations || [])) {
+      registration.dispose();
     }
 
-    const reg = vscode.languages.registerOnTypeFormattingEditProvider(documentSelector(), this, otc.at(0) || "\n", ...otc.slice(1));
+    const ignoreSchemes = new Set<string>(config.get<string[]>("ignoreSchemes", []));
+    const activeSchemes = ALL_SUPPORTED_SCHEMES.filter(scheme => !ignoreSchemes.has(scheme));
 
-    context.subscriptions.push(reg);
+    const newRegistrations = [];
+    for (const scheme of activeSchemes) {
+      newRegistrations.push(
+        vscode.languages.registerOnTypeFormattingEditProvider(documentSelector(scheme), this, otc.at(0) || "\n", ...otc.slice(1)),
+        vscode.languages.registerDocumentFormattingEditProvider(documentSelector(scheme), this),
+        vscode.languages.registerDocumentRangeFormattingEditProvider(documentSelector(scheme), this),
+      );
+    }
+
+    context.subscriptions.push(...newRegistrations);
 
     return {
       // Note that the secondary values are soft defaults and only fallbacks to avoid
       // undefined values. Actual defaults are set in package.json.
       enabled: config.get<boolean>("format.enable", false),
       autoImports: autoImportMap,
-      onTypeRegistration: reg,
+      reloadableRegistrations: newRegistrations,
       alwaysImport: config.get<string[]>("alwaysImport", []),
       removeUnusedImports: config.get<boolean>("removeUnusedImports", false),
     };

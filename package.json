@@ -2,7 +2,7 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "icon": "logo.png",
   "publisher": "groogle",
   "license": "MIT",
@@ -48,6 +48,20 @@
           "description": "Whether or not to remove unused imports",
           "default": false,
           "type": "boolean"
+        },
+        "very-import-ant.ignoreSchemes": {
+          "description": "The list of VS Code document schemes that will *not* be formatted by this extension.",
+          "default": [],
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "file",
+              "vscode-notebook-cell",
+              "untitled"
+            ]
+          }
         },
         "very-import-ant.autoImports": {
           "description": "The set of auto-imports to consider when formatting a python file",

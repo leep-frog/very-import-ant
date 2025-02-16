@@ -107,6 +107,7 @@ interface VeryImportConfig {
   }[],
   alwaysImport?: string[];
   removeUnusedImports?: boolean;
+  ignoreSchemes?: string[];
 }
 
 function defaultSettings(config?: VeryImportConfig) {
@@ -136,6 +137,7 @@ function defaultSettings(config?: VeryImportConfig) {
     "very-import-ant.format.enable": config?.enabled ?? true,
     "very-import-ant.removeUnusedImports": config?.removeUnusedImports ?? false,
     "very-import-ant.alwaysImport": config?.alwaysImport ?? [],
+    "very-import-ant.ignoreSchemes": config?.ignoreSchemes ?? [],
     "very-import-ant.onTypeTriggerCharacters": config?.onTypeTriggerCharacters,
     "notebook.defaultFormatter": "groogle.very-import-ant",
     "notebook.formatOnCellExecution": true,
@@ -1207,6 +1209,108 @@ const testCases: TestCase[] = [
       ``,
     ],
   },
+  // ignoreScheme tests
+  {
+    name: "Doesn't format python file if scheme is ignored",
+    settings: defaultSettings({
+      ignoreSchemes: ['file'],
+    }),
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+  },
+  {
+    name: "Format python file if ignore scheme is removed (copy of previous test with ignoreScheme change)",
+    settings: defaultSettings({
+      ignoreSchemes: ['vscode-notebook-cell', 'untitled'],
+    }),
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc({
+        containsText: "pandas",
+      }),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
+  },
+  {
+    name: "Doesn't format notebook if scheme is ignored",
+    settings: defaultSettings({
+      ignoreSchemes: ['vscode-notebook-cell'],
+    }),
+    notebook: true,
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+      }),
+    ],
+    expectedText: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
+  },
+  {
+    name: "Format notebook if ignore scheme is removed (copy of previous test with ignoreScheme change)",
+    settings: defaultSettings({
+      ignoreSchemes: [],
+    }),
+    notebook: true,
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "pandas",
+      }),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(2, 0)],
+  },
+  // TODO: untitled file tests (for both actual fixing and ignoring scheme
+  // Probably will need to use new python file command to test this
+
   /* Useful for commenting out tests. */
 ];
 
