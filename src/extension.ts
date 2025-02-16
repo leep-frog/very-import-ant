@@ -1,8 +1,7 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
 import { Diagnostic, Workspace } from '@astral-sh/ruff-wasm-nodejs';
+import { merge } from './range-merge';
 
 const LINT_CONFIG = new Workspace({
   lint: {
@@ -41,12 +40,6 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
   );
-}
-
-interface VeryImportantText {
-  edits: vscode.TextEdit[][];
-  text: string;
-  error?: string;
 }
 
 interface AutoImport {
@@ -170,40 +163,34 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }
 
     // Generate the new text
-    const vit: VeryImportantText = {
-      edits: [],
-      text: text,
-    };
-    this.addImports(vit, importsToAdd);
-
-    // Return an error if there was an issue
-    if (vit.error) {
-      vscode.window.showErrorMessage(vit.error);
-      return;
+    const allEdits: vscode.TextEdit[][] = [];
+    const [edittedText, successs] = this.addImports(text, importsToAdd, allEdits);
+    if (!successs) {
+      return [];
     }
 
     // Simply return single set of edits if only run once
-    if (vit.edits.length <= 1) {
-      return vit.edits.at(0);
+    if (allEdits.length <= 0) {
+      return allEdits.at(0);
     }
 
     // Otherwise, replace the entire document, as vscode expects all TextEdit
     // objects to reference the original document's positions (not incremental).
     return [{
       range: new vscode.Range(0, 0, document.lineCount, 0),
-      newText: vit.text,
+      newText: edittedText,
     }];
   }
 
-  private addImports(vit: VeryImportantText, importsToAdd: string[]): undefined {
+  private addImports(text: string, importsToAdd: string[], editList: vscode.TextEdit[][]): [string, boolean] {
 
     // Unfortunately, ruff iterates on fixes for other clients (e.g. CLI)
     // but doesn't plan to support it for the npm package: https://github.com/astral-sh/ruff/issues/14928
     // Fortunately, it's not too, too difficult to iterate ourselves,
     // but we should look to thoroughly test this logic.
-    if (vit.edits.length > RUFF_FORMAT_DEPTH_LIMIT) {
-      vit.error = `Formatting error (depth-limit). Please open a GitHub issue and include the contents of your file.`;
-      return;
+    if (editList.length > RUFF_FORMAT_DEPTH_LIMIT) {
+      vscode.window.showInformationMessage(`Formatting error (depth-limit). Please open a GitHub issue and include the contents of your file.`);
+      return ["", false];
     }
 
     let isortConfig;
@@ -223,27 +210,25 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       });
     } catch (e) {
       vscode.window.showErrorMessage(`Failed to create import config: ${e}`);
-      return;
+      return ["", false];
     }
 
-    const diags: Diagnostic[] = isortConfig.check(vit.text);
+    const diags: Diagnostic[] = isortConfig.check(text);
 
-    const edits = diags.flatMap(diag => diag.fix?.edits || []).map((edit): vscode.TextEdit => {
+    const edits = merge(diags.flatMap(diag => diag.fix?.edits || []).map((edit): vscode.TextEdit => {
       return {
         range: new vscode.Range(edit.location.row - 1, edit.location.column - 1, edit.end_location.row - 1, edit.end_location.column - 1),
         newText: edit.content || "",
       };
-    });
+    }));
 
     if (!edits.length) {
-      return;
+      return [text, true];
     }
 
     console.log(`Adding edits: ${JSON.stringify(edits)}`);
-
-    vit.text = this.applyEdits(vit.text, edits);
-    vit.edits.push(edits);
-    this.addImports(vit, importsToAdd);
+    editList.push(edits);
+    return this.addImports(this.applyEdits(text, edits), importsToAdd, editList);
   }
 
   private applyEdits(text: string, edits: vscode.TextEdit[]): string {
