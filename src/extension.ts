@@ -191,7 +191,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     const allEdits: vscode.TextEdit[][] = [];
     const [edittedText, successs] = this.addImports(text, importsToAdd, allEdits);
     if (!successs) {
-      return [];
+      return;
     }
 
     // Simply return single set of edits if only run once
