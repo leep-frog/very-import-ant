@@ -13,9 +13,9 @@
 				"--extensionDevelopmentPath=${workspaceFolder}"
 			],
 			"outFiles": [
-				"${workspaceFolder}/out/**/*.js"
+				"${workspaceFolder}/bundled-out/*.js"
 			],
-			"preLaunchTask": "${defaultBuildTask}"
-		}
+			"preLaunchTask": "${defaultBuildTask}",
+		},
 	]
 }
