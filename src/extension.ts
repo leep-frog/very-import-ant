@@ -10,9 +10,11 @@ enum RuffCode {
   MISSING_REQUIRED_IMPORT = 'I002',
 };
 
+const NOTEBOOK_SCHEME = "vscode-notebook-cell";
+
 const ALL_SUPPORTED_SCHEMES = [
   "file",
-  "vscode-notebook-cell",
+  NOTEBOOK_SCHEME,
   "untitled",
 ];
 
@@ -152,7 +154,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       lint: {
         select: [
           RuffCode.UNDEFINED_NAME,
-          ...(this.settings.removeUnusedImports ? [RuffCode.UNUSED_IMPORT] : []),
+          ...this.getUnusedImportConfig(document),
         ],
       },
     });
@@ -162,7 +164,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     // Map all undefined variables to their imports (if included in settings)
     const importsToAdd = [...new Set([
-      ...this.settings.alwaysImport,
+      ...this.getAlwaysImports(document),
       ...new Set(diagnostics.filter(diagnostic => diagnostic.code === RuffCode.UNDEFINED_NAME).flatMap((diagnostic) => {
 
         const match = LINT_ERROR_REGEX.exec(diagnostic.message);
@@ -189,7 +191,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     // Generate the new text
     const allEdits: vscode.TextEdit[][] = [];
-    const [edittedText, successs] = this.addImports(text, importsToAdd, allEdits);
+    const [edittedText, successs] = this.addImports(document, text, importsToAdd, allEdits);
     if (!successs) {
       return;
     }
@@ -207,7 +209,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }];
   }
 
-  private addImports(text: string, importsToAdd: string[], editList: vscode.TextEdit[][]): [string, boolean] {
+  private addImports(document: vscode.TextDocument, text: string, importsToAdd: string[], editList: vscode.TextEdit[][]): [string, boolean] {
 
     // Unfortunately, ruff iterates on fixes for other clients (e.g. CLI)
     // but doesn't plan to support it for the npm package: https://github.com/astral-sh/ruff/issues/14928
@@ -225,7 +227,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
           select: [
             RuffCode.UNSORTED_IMPORTS,
             RuffCode.MISSING_REQUIRED_IMPORT,
-            ...(this.settings.removeUnusedImports ? [RuffCode.UNUSED_IMPORT] : []),
+            ...this.getUnusedImportConfig(document),
           ],
           isort: {
             'required-imports': importsToAdd,
@@ -254,7 +256,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     console.log(`Adding edits: ${JSON.stringify(edits)}`);
     editList.push(edits);
-    return this.addImports(this.applyEdits(text, edits), importsToAdd, editList);
+    return this.addImports(document, this.applyEdits(text, edits), importsToAdd, editList);
   }
 
   private applyEdits(text: string, edits: vscode.TextEdit[]): string {
@@ -303,6 +305,25 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }
 
     return editLines.join("");
+  }
+
+  private getAlwaysImports(document: vscode.TextDocument): string[] {
+    // We don't want to always import in notebook mode, but if we do
+    // just add a separate setting per scheme (notebook vs python).
+    // There is an open VS Code issue to have this natively: https://github.com/microsoft/vscode/issues/195011
+    // so perhaps we can just leave as is until that is implemented.
+    if (document.uri.scheme === NOTEBOOK_SCHEME) {
+      return [];
+    }
+    return this.settings.alwaysImport;
+  }
+
+  private getUnusedImportConfig(document: vscode.TextDocument): string[] {
+    // Same reasoning as getAlwaysImport above
+    if (document.uri.scheme === NOTEBOOK_SCHEME || !this.settings.removeUnusedImports) {
+      return [];
+    }
+    return [RuffCode.UNUSED_IMPORT];
   }
 }
 

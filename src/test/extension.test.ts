@@ -1111,6 +1111,9 @@ const testCases: TestCase[] = [
     userInteractions: [
       cmd("workbench.action.files.save"),
       _waitForDocChange("pandas"),
+      // Need to wait a little bit longer to ensure the save action completes
+      // after the formatting step runs (since the above only waits for the formatting to occur).
+      delay(50),
     ],
     expectedText: [
       "import pandas as pd",
@@ -1121,6 +1124,66 @@ const testCases: TestCase[] = [
       "",
     ],
     expectedSelections: [sel(1, 0)],
+  },
+  {
+    name: "alwaysImports is ignored for notebooks",
+    settings: defaultSettings({
+      alwaysImport: [
+        "from alw import ays",
+        "import numpy as np",
+      ],
+    }),
+    notebook: true,
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "",
+    ],
+    userInteractions: [
+      delay(25),
+      cmd("workbench.action.files.save"),
+      _waitForDocChange("pandas"),
+      delay(25),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "",
+    ],
+    expectedSelections: [sel(2, 0)],
+  },
+  {
+    name: "removeUnusedImports is ignored for notebooks",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+    }),
+    notebook: true,
+    fileContents: [
+      "from nunya import business",
+      "",
+      "def func():",
+      "    _ = pd",
+      "",
+    ],
+    userInteractions: [
+      cmd("workbench.action.files.save"),
+      _waitForDocChange("pandas"),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "from nunya import business",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "",
+    ],
+    expectedSelections: [sel(4, 0)],
   },
   // Remove unused imports test
   {
@@ -1279,7 +1342,7 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    expectedSelections: [sel(1, 0)],
+    expectedSelections: [sel(3, 10)],
   },
   {
     name: "Format notebook if ignore scheme is removed (copy of previous test with ignoreScheme change)",
@@ -1306,7 +1369,7 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    expectedSelections: [sel(2, 0)],
+    expectedSelections: [sel(4, 10)],
   },
   // TODO: untitled file tests (for both actual fixing and ignoring scheme
   // Probably will need to use new python file command to test this
