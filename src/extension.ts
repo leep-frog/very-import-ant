@@ -87,10 +87,12 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   constructor(context: vscode.ExtensionContext) {
     this.settings = this.reloadSettings(context);
     this.outputChannel = new TruncatedOutputChannel(vscode.window.createOutputChannel("very-import-ant"));
+    this.outputChannel.log(`Initial settings: ${JSON.stringify(this.settings)}`);
   }
 
   reload(context: vscode.ExtensionContext) {
     this.settings = this.reloadSettings(context);
+    this.outputChannel.log(`Reloaded settings: ${JSON.stringify(this.settings)}`);
   }
 
   private reloadSettings(context: vscode.ExtensionContext): VeryImportantSettings {
