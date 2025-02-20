@@ -29,6 +29,27 @@ function documentSelector(scheme: string): vscode.DocumentSelector {
   };
 }
 
+class TruncatedOutputChannel {
+
+  private outputChannel: vscode.OutputChannel;
+  private logs: string[];
+
+  constructor(outputChannel: vscode.OutputChannel) {
+    this.outputChannel = outputChannel;
+    this.logs = [];
+  }
+
+  log(message: string) {
+    this.logs.push(message);
+    if (this.logs.length > 1000) {
+      this.logs = this.logs.slice(900);
+      this.outputChannel.replace(this.logs.join("\n"));
+    } else {
+      this.outputChannel.appendLine(message);
+    }
+  }
+}
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -61,11 +82,11 @@ interface VeryImportantSettings {
 class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, vscode.OnTypeFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
 
   settings: VeryImportantSettings;
-  outputChannel: vscode.OutputChannel;
+  outputChannel: TruncatedOutputChannel;
 
   constructor(context: vscode.ExtensionContext) {
     this.settings = this.reloadSettings(context);
-    this.outputChannel = vscode.window.createOutputChannel("very-import-ant");
+    this.outputChannel = new TruncatedOutputChannel(vscode.window.createOutputChannel("very-import-ant"));
   }
 
   reload(context: vscode.ExtensionContext) {
@@ -121,24 +142,24 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   provideDocumentFormattingEdits(document: vscode.TextDocument, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    this.outputChannel.appendLine('Formatting doc');
+    this.outputChannel.log('Formatting doc');
     return this.formatDocument(document);
   }
 
   provideDocumentRangeFormattingEdits(document: vscode.TextDocument, range: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    this.outputChannel.appendLine(`Formatting range`);
+    this.outputChannel.log(`Formatting range`);
     // TODO: have ruff only inspect the range
     return this.formatDocument(document);
   }
 
   provideDocumentRangesFormattingEdits(document: vscode.TextDocument, ranges: vscode.Range[], options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    this.outputChannel.appendLine(`Formatting ranges`);
+    this.outputChannel.log(`Formatting ranges`);
     // TODO: have ruff only inspect the range
     return this.formatDocument(document);
   }
 
   provideOnTypeFormattingEdits(document: vscode.TextDocument, position: vscode.Position, ch: string, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    this.outputChannel.appendLine(`Formatting on type`);
+    this.outputChannel.log(`Formatting on type (ch:${ch})`);
     return this.formatDocument(document);
   }
 
@@ -162,7 +183,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     });
     const diagnostics: Diagnostic[] = lint_config.check(text);
 
-    this.outputChannel.appendLine(`ruff diagnosticts: ${JSON.stringify(diagnostics)}`);
+    this.outputChannel.log(`ruff diagnosticts: ${JSON.stringify(diagnostics)}`);
 
     // Map all undefined variables to their imports (if included in settings)
     const importsToAdd = [...new Set([
@@ -256,7 +277,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return [text, true];
     }
 
-    this.outputChannel.appendLine(`Adding edits: ${JSON.stringify(edits)}`);
+    this.outputChannel.log(`Adding edits: ${JSON.stringify(edits)}`);
     editList.push(edits);
     return this.addImports(document, this.applyEdits(text, edits), importsToAdd, editList);
   }
