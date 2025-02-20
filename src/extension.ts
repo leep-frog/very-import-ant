@@ -61,9 +61,11 @@ interface VeryImportantSettings {
 class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, vscode.OnTypeFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
 
   settings: VeryImportantSettings;
+  outputChannel: vscode.OutputChannel;
 
   constructor(context: vscode.ExtensionContext) {
     this.settings = this.reloadSettings(context);
+    this.outputChannel = vscode.window.createOutputChannel("very-import-ant");
   }
 
   reload(context: vscode.ExtensionContext) {
@@ -119,24 +121,24 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   provideDocumentFormattingEdits(document: vscode.TextDocument, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    console.log(`Formatting doc`);
+    this.outputChannel.appendLine('Formatting doc');
     return this.formatDocument(document);
   }
 
   provideDocumentRangeFormattingEdits(document: vscode.TextDocument, range: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    console.log(`Formatting range`);
+    this.outputChannel.appendLine(`Formatting range`);
     // TODO: have ruff only inspect the range
     return this.formatDocument(document);
   }
 
   provideDocumentRangesFormattingEdits(document: vscode.TextDocument, ranges: vscode.Range[], options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    console.log(`Formatting ranges`);
+    this.outputChannel.appendLine(`Formatting ranges`);
     // TODO: have ruff only inspect the range
     return this.formatDocument(document);
   }
 
   provideOnTypeFormattingEdits(document: vscode.TextDocument, position: vscode.Position, ch: string, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    console.log(`Formatting on type`);
+    this.outputChannel.appendLine(`Formatting on type`);
     return this.formatDocument(document);
   }
 
@@ -160,7 +162,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     });
     const diagnostics: Diagnostic[] = lint_config.check(text);
 
-    console.log(`ruff diagnosticts: ${JSON.stringify(diagnostics)}`);
+    this.outputChannel.appendLine(`ruff diagnosticts: ${JSON.stringify(diagnostics)}`);
 
     // Map all undefined variables to their imports (if included in settings)
     const importsToAdd = [...new Set([
@@ -254,7 +256,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return [text, true];
     }
 
-    console.log(`Adding edits: ${JSON.stringify(edits)}`);
+    this.outputChannel.appendLine(`Adding edits: ${JSON.stringify(edits)}`);
     editList.push(edits);
     return this.addImports(document, this.applyEdits(text, edits), importsToAdd, editList);
   }
