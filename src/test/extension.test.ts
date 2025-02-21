@@ -518,13 +518,33 @@ const testCases: TestCase[] = [
     expectedSelections: [sel(4, 0)],
   },
   {
-    name: "Formats onSave",
-    settings: defaultSettings(),
+    name: "Format onSave fixes everything",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xyz",
+          import: "from alphabet import tail as xyz",
+        },
+      ],
+      alwaysImport: [
+        "from france import un",
+        "from france import deux",
+        "from italy import wine",
+      ],
+    }),
     fileContents: [
+      "from alphabet import abc, fgh, jkl",
+      "from italy import food",
       "",
-      "",
+      "from alphabet import de",
       "def func():",
       "    _ = pd",
+      "    _ = food + de + abc + jkl + xyz",
+      "    _ = np",
     ],
     userInteractions: [
       cmd("workbench.action.files.save"),
@@ -534,13 +554,66 @@ const testCases: TestCase[] = [
       delay(25),
     ],
     expectedText: [
-      "import pandas as pd",
-      "",
-      "",
-      "def func():",
-      "    _ = pd",
+      `import numpy as np`,
+      `from alphabet import abc, de, fgh, jkl, tail as xyz`,
+      `from france import deux, un`,
+      `from italy import food, wine`,
+      ``,
+      ``,
+      `def func():`,
+      `    _ = pd`,
+      `    _ = food + de + abc + jkl + xyz`,
+      `    _ = np`,
     ],
     expectedSelections: [sel(1, 0)],
+  },
+  {
+    name: "Format with command fixes everything",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xyz",
+          import: "from alphabet import tail as xyz",
+        },
+      ],
+      alwaysImport: [
+        "from france import un",
+        "from france import deux",
+        "from italy import wine",
+      ],
+    }),
+    fileContents: [
+      "from alphabet import abc, fgh, jkl",
+      "from italy import food",
+      "",
+      "from alphabet import de",
+      "def func():",
+      "    _ = pd",
+      "    _ = food + de + abc + jkl + xyz",
+      "    _ = np",
+    ],
+    userInteractions: [
+      formatDoc({
+        containsText: "pandas",
+      }),
+    ],
+    expectedText: [
+      `import numpy as np`,
+      `from alphabet import abc, de, fgh, jkl, tail as xyz`,
+      `from france import deux, un`,
+      `from italy import food, wine`,
+      ``,
+      ``,
+      `def func():`,
+      `    _ = pd`,
+      `    _ = food + de + abc + jkl + xyz`,
+      `    _ = np`,
+    ],
+    expectedSelections: [sel(9, 10)],
   },
   {
     name: "Formats onPaste",
@@ -567,11 +640,12 @@ const testCases: TestCase[] = [
       "import pandas as pd",
       "",
       "",
+      "",
       "def func():",
       "    _ = pd",
       "    _ = np",
     ],
-    expectedSelections: [sel(6, 10)],
+    expectedSelections: [sel(7, 10)],
   },
   {
     name: "Formats onType for first of more_trigger_characters",
@@ -598,7 +672,6 @@ const testCases: TestCase[] = [
       "    d",
     ],
     expectedSelections: [sel(5, 5)],
-
   },
   {
     // Note, this test is after the more_trigger_characters because we want
@@ -628,6 +701,57 @@ const testCases: TestCase[] = [
       "    ",
     ],
     expectedSelections: [sel(5, 4)],
+  },
+  {
+    name: "Formats onType does not fix everything",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xyz",
+          import: "from alphabet import tail as xyz",
+        },
+      ],
+      alwaysImport: [
+        "from france import un",
+        "from france import deux",
+        "from italy import wine",
+      ],
+    }),
+    fileContents: [
+      "from alphabet import abc, fgh, jkl",
+      "from italy import food",
+      "",
+      "from alphabet import de",
+      "def func():",
+      "    _ = pd",
+      "    _ = food + de + abc + jkl + xyz",
+      "    _ = np",
+    ],
+    selections: [sel(7, 10)],
+    userInteractions: [
+      formatOnType("\n", "pandas"),
+    ],
+    expectedText: [
+      `import numpy as np`,
+      `from alphabet import tail as xyz`,
+      `from france import deux`,
+      `from france import un`,
+      `from italy import wine`,
+      `from alphabet import abc, fgh, jkl`,
+      `from italy import food`,
+      ``,
+      `from alphabet import de`,
+      `def func():`,
+      `    _ = pd`,
+      `    _ = food + de + abc + jkl + xyz`,
+      `    _ = np`,
+      `    `,
+    ],
+    expectedSelections: [sel(13, 4)],
   },
   {
     name: "Formats onType for onTypeTriggerCharacters when not a whitespace character",

@@ -145,27 +145,27 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
   provideDocumentFormattingEdits(document: vscode.TextDocument, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
     this.outputChannel.log('Formatting doc');
-    return this.formatDocument(document);
+    return this.formatDocument(document, true);
   }
 
   provideDocumentRangeFormattingEdits(document: vscode.TextDocument, range: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
     this.outputChannel.log(`Formatting range`);
     // TODO: have ruff only inspect the range
-    return this.formatDocument(document);
+    return this.formatDocument(document, false);
   }
 
   provideDocumentRangesFormattingEdits(document: vscode.TextDocument, ranges: vscode.Range[], options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
     this.outputChannel.log(`Formatting ranges`);
     // TODO: have ruff only inspect the range
-    return this.formatDocument(document);
+    return this.formatDocument(document, false);
   }
 
   provideOnTypeFormattingEdits(document: vscode.TextDocument, position: vscode.Position, ch: string, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
     this.outputChannel.log(`Formatting on type (ch:${ch})`);
-    return this.formatDocument(document);
+    return this.formatDocument(document, false);
   }
 
-  formatDocument(document: vscode.TextDocument): vscode.ProviderResult<vscode.TextEdit[]> {
+  formatDocument(document: vscode.TextDocument, fullFormat: boolean): vscode.ProviderResult<vscode.TextEdit[]> {
     if (!this.settings.enabled) {
       vscode.window.showErrorMessage("The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings");
       return;
@@ -178,10 +178,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return;
     }
 
-    return this.fixDocument(document, text, importsToAdd);
+    return this.fixDocument(document, text, importsToAdd, fullFormat);
   }
 
-  private fixDocument(document: vscode.TextDocument, text: string, importsToAdd: string[]): vscode.ProviderResult<vscode.TextEdit[]> {
+  private fixDocument(document: vscode.TextDocument, text: string, importsToAdd: string[], fullFormat: boolean): vscode.ProviderResult<vscode.TextEdit[]> {
     // Generate the new text
     const allEdits: vscode.TextEdit[][] = [];
 
@@ -191,8 +191,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     // but we should look to thoroughly test this logic.
 
     const ruffConfigs: RuffConfig[] = [
-      this.addImportsConfig(importsToAdd),
-      ...this.removeUnusedImportsConfigs(document),
+      this.addImportsConfig(importsToAdd, fullFormat),
+      ...this.removeUnusedImportsConfigs(document, fullFormat),
     ];
 
     // TODO: Do prevSize and allEdits.length comparison, but need to be careful
@@ -276,9 +276,9 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     return this.settings.alwaysImport;
   }
 
-  private removeUnusedImportsConfigs(document: vscode.TextDocument): RuffConfig[] {
+  private removeUnusedImportsConfigs(document: vscode.TextDocument, fullFormat: boolean): RuffConfig[] {
     // Same reasoning as getAlwaysImport above
-    if (document.uri.scheme === NOTEBOOK_SCHEME || !this.settings.removeUnusedImports) {
+    if (!fullFormat || document.uri.scheme === NOTEBOOK_SCHEME || !this.settings.removeUnusedImports) {
       return [];
     }
     return [{
@@ -294,16 +294,16 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }];
   }
 
-  private addImportsConfig(importsToAdd: string[]): RuffConfig {
+  private addImportsConfig(importsToAdd: string[], fullFormat: boolean): RuffConfig {
     return {
       lint: {
         select: [
-          RuffCode.UNSORTED_IMPORTS,
+          ...(fullFormat ? [RuffCode.UNSORTED_IMPORTS] : []),
           RuffCode.MISSING_REQUIRED_IMPORT,
         ],
         isort: {
           'required-imports': importsToAdd,
-          'lines-after-imports': 2,
+          'lines-after-imports': fullFormat ? 2 : undefined,
           'combine-as-imports': true,
         },
       },
