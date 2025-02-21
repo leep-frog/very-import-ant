@@ -216,11 +216,34 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return;
     }
 
+    return this.fixDocument(document, text, importsToAdd);
+  }
+
+  private fixDocument(document: vscode.TextDocument, text: string, importsToAdd: string[]): vscode.ProviderResult<vscode.TextEdit[]> {
     // Generate the new text
     const allEdits: vscode.TextEdit[][] = [];
-    const [edittedText, successs] = this.addImports(document, text, importsToAdd, allEdits);
-    if (!successs) {
-      return;
+
+    // Unfortunately, ruff iterates on fixes for other clients (e.g. CLI)
+    // but doesn't plan to support it for the npm package: https://github.com/astral-sh/ruff/issues/14928
+    // Fortunately, it's not too, too difficult to iterate ourselves,
+    // but we should look to thoroughly test this logic.
+
+    // TODO: Do prevSize and allEdits.length comparison, but need to be careful
+    // if removing unused imports keeps removing required imports.
+    let prevText = text + "a";
+    for (let i = 0; prevText !== text; i++) {
+      prevText = text;
+      const [edittedText, successs] = this.addImports(document, text, importsToAdd, allEdits);
+      if (!successs) {
+        return;
+      }
+      text = edittedText;
+
+      // Stop if recursion is appearing to get into a cycle.
+      if (i > RUFF_FORMAT_DEPTH_LIMIT) {
+        vscode.window.showErrorMessage(`Formatting error (depth-limit). Please open a GitHub issue and include the contents of your file.`);
+        return;
+      }
     }
 
     // Simply return single set of edits if only run once
@@ -232,22 +255,29 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     // objects to reference the original document's positions (not incremental).
     return [{
       range: new vscode.Range(0, 0, document.lineCount, 0),
-      newText: edittedText,
+      newText: text,
     }];
   }
 
+  // private removeUnusedImports(document: vscode.TextDocument, text: string, editList: vscode.TextEdit[][]): [string, boolean] {
+  //   if (!this.settings.removeUnusedImports) {
+  //     return [text, true];
+  //   }
+
+  //   const [diags, ok] = this.runRuffConfig(text, {
+  //     lint: {
+  //       select: [
+  //         RuffCode.UNUSED_IMPORT,
+  //       ],
+  //     }
+  //   });
+  //   if (!ok) {
+  //     return ["", false];
+  //   }
+  // }
+
   private addImports(document: vscode.TextDocument, text: string, importsToAdd: string[], editList: vscode.TextEdit[][]): [string, boolean] {
-
-    // Unfortunately, ruff iterates on fixes for other clients (e.g. CLI)
-    // but doesn't plan to support it for the npm package: https://github.com/astral-sh/ruff/issues/14928
-    // Fortunately, it's not too, too difficult to iterate ourselves,
-    // but we should look to thoroughly test this logic.
-    if (editList.length > RUFF_FORMAT_DEPTH_LIMIT) {
-      vscode.window.showInformationMessage(`Formatting error (depth-limit). Please open a GitHub issue and include the contents of your file.`);
-      return ["", false];
-    }
-
-    const [diags, ok] = this.runRuffConfig(text, {
+    return this.applyRuffConfig(text, editList, {
       lint: {
         select: [
           RuffCode.UNSORTED_IMPORTS,
@@ -261,6 +291,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
         },
       },
     });
+  }
+
+  private applyRuffConfig(text: string, editList: vscode.TextEdit[][], ruffConfig: RuffConfig): [string, boolean] {
+    const [diags, ok] = this.runRuffConfig(text, ruffConfig);
 
     if (!ok) {
       return ["", false];
@@ -268,20 +302,24 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     this.outputChannel.log(`Pre merged edits: ${JSON.stringify(diags)}`);
 
-    const edits = merge(diags.flatMap(diag => diag.fix?.edits || []).map((edit): vscode.TextEdit => {
+    return [this.applyDiagnosticEdits(text, diags, editList), true];
+  }
+
+  private applyDiagnosticEdits(text: string, diagnostics: Diagnostic[], editList: vscode.TextEdit[][]): string {
+    const edits = merge(diagnostics.flatMap(diag => diag.fix?.edits || []).map((edit): vscode.TextEdit => {
       return {
         range: new vscode.Range(edit.location.row - 1, edit.location.column - 1, edit.end_location.row - 1, edit.end_location.column - 1),
         newText: edit.content || "",
       };
     }));
 
-    if (!edits.length) {
-      return [text, true];
+    if (edits.length === 0) {
+      return text;
     }
 
     this.outputChannel.log(`Adding edits: ${JSON.stringify(edits)}`);
     editList.push(edits);
-    return this.addImports(document, this.applyEdits(text, edits), importsToAdd, editList);
+    return this.applyEdits(text, edits);
   }
 
   private applyEdits(text: string, edits: vscode.TextEdit[]): string {
