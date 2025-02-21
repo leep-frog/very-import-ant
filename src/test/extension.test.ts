@@ -593,6 +593,56 @@ const testCases: TestCase[] = [
     expectedSelections: [sel(4, 0)],
   },
   {
+    name: "Handles identical ruff fixes with import block",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+    }),
+    fileContents: [
+      "from p import (",
+      "    one,",
+      "    two,",
+      "    three,",
+      ")",
+      "",
+      "",
+      "_ = one",
+    ],
+    userInteractions: [
+      formatDoc({ doesNotContainText: "three" }),
+    ],
+    expectedText: [
+      // TODO: stop this if just one
+      "from p import (",
+      "    one,",
+      ")",
+      "",
+      "",
+      "_ = one",
+    ],
+  },
+  {
+    name: "Handles identical ruff fixes with import statement",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+    }),
+    fileContents: [
+      "from p import one, two, three",
+      "",
+      "",
+      "_ = one",
+    ],
+    userInteractions: [
+      formatDoc({ doesNotContainText: "three" }),
+    ],
+    expectedText: [
+      "from p import one",
+      "",
+      "",
+      "_ = one",
+    ],
+  },
+  // Test format triggering
+  {
     name: "Format onSave fixes everything",
     settings: defaultSettings({
       autoImports: [
@@ -811,11 +861,11 @@ const testCases: TestCase[] = [
       formatOnType("\n", "pandas"),
     ],
     expectedText: [
-      `import numpy as np`,
       `from alphabet import tail as xyz`,
       `from france import deux`,
       `from france import un`,
       `from italy import wine`,
+      `import numpy as np`,
       `from alphabet import abc, fgh, jkl`,
       `from italy import food`,
       ``,
