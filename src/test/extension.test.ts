@@ -214,7 +214,6 @@ const testCases: TestCase[] = [
   {
     name: "Handles more syntax errors",
     settings: defaultSettings(),
-    runSolo: true,
     fileContents: [
       "from else import somewhere",
       "from somewhere import else",
@@ -245,7 +244,6 @@ const testCases: TestCase[] = [
         },
       ],
     }),
-    runSolo: true,
     fileContents: [
       "",
       "",
