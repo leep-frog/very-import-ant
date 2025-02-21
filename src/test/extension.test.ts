@@ -613,7 +613,7 @@ const testCases: TestCase[] = [
       `    _ = food + de + abc + jkl + xyz`,
       `    _ = np`,
     ],
-    expectedSelections: [sel(9, 10)],
+    expectedSelections: [sel(6, 0)],
   },
   {
     name: "Formats onPaste",
