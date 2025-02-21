@@ -1272,6 +1272,32 @@ const testCases: TestCase[] = [
       ``,
     ],
   },
+  {
+    name: "handles removing unused imports and sorting imports simultaneously",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+    }),
+    fileContents: [
+      `from package import un as one, deux as two`,
+      ``,
+      ``,
+      `def func():`,
+      `    _=one`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({ doesNotContainText: "deux" }),
+    ],
+    expectedText: [
+      `from package import un as one`,
+      ``,
+      ``,
+      `def func():`,
+      `    _=one`,
+      ``,
+    ],
+    expectedSelections: [sel(5, 0)],
+  },
   // ignoreScheme tests
   {
     name: "Doesn't format python file if scheme is ignored",
