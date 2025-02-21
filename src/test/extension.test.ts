@@ -212,6 +212,58 @@ const testCases: TestCase[] = [
     ],
   },
   {
+    name: "Handles more syntax errors",
+    settings: defaultSettings(),
+    runSolo: true,
+    fileContents: [
+      "from else import somewhere",
+      "from somewhere import else",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "from else import somewhere",
+      "from somewhere import else",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(4, 10)],
+  },
+  {
+    name: "Handles invalid import (as the file text will be idenitcal before and after, so iteration ends)",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+      autoImports: [
+        {
+          variable: "pd",
+          import: "from some import thing",
+        },
+      ],
+    }),
+    runSolo: true,
+    fileContents: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
+  },
+  {
     name: "Adds import for single supported variable when indentation is included",
     settings: defaultSettings(),
     fileContents: [

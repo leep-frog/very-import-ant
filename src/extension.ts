@@ -195,8 +195,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       ...this.removeUnusedImportsConfigs(document, fullFormat),
     ];
 
-    // TODO: Do prevSize and allEdits.length comparison, but need to be careful
-    // if removing unused imports keeps removing required imports.
+    // We use prevText here (instead of counting edits for example)
+    // because there are cases where an auto-import causes an unrelated
+    // import to be added ({variable: "pd", import: "from some import thing"}).
+    // If we counted edits, this would recur, but if check the text, then it does not.
     let prevText = text + "a";
     for (let i = 0; prevText !== text; i++) {
       prevText = text;
