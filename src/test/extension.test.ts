@@ -876,7 +876,7 @@ const testCases: TestCase[] = [
     ],
     errorMessage: {
       expectedMessages: [
-        `Failed to create import config: Error: Error: Expected ',', found name at byte range 13..15`,
+        `Failed to create ruff config: Error: Error: Expected ',', found name at byte range 13..15`,
       ],
     }
   },

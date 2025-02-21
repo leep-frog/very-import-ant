@@ -175,7 +175,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     const text = document.getText();
 
     // Find all undefined variables
-    const lint_config = new Workspace({
+    const [diagnostics, ok] = this.runRuffConfig(text, {
       lint: {
         select: [
           RuffCode.UNDEFINED_NAME,
@@ -183,7 +183,9 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
         ],
       },
     });
-    const diagnostics: Diagnostic[] = lint_config.check(text);
+    if (!ok) {
+      return;
+    }
 
     this.outputChannel.log(`ruff diagnosticts: ${JSON.stringify(diagnostics)}`);
 
@@ -245,28 +247,26 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return ["", false];
     }
 
-    let isortConfig;
-    try {
-      isortConfig = new Workspace({
-        lint: {
-          select: [
-            RuffCode.UNSORTED_IMPORTS,
-            RuffCode.MISSING_REQUIRED_IMPORT,
-            ...this.getUnusedImportConfig(document),
-          ],
-          isort: {
-            'required-imports': importsToAdd,
-            'lines-after-imports': 2,
-            'combine-as-imports': true,
-          },
+    const [diags, ok] = this.runRuffConfig(text, {
+      lint: {
+        select: [
+          RuffCode.UNSORTED_IMPORTS,
+          RuffCode.MISSING_REQUIRED_IMPORT,
+          ...this.getUnusedImportConfig(document),
+        ],
+        isort: {
+          'required-imports': importsToAdd,
+          'lines-after-imports': 2,
+          'combine-as-imports': true,
         },
-      });
-    } catch (e) {
-      vscode.window.showErrorMessage(`Failed to create import config: ${e}`);
+      },
+    });
+
+    if (!ok) {
       return ["", false];
     }
 
-    const diags: Diagnostic[] = isortConfig.check(text);
+    this.outputChannel.log(`Pre merged edits: ${JSON.stringify(diags)}`);
 
     const edits = merge(diags.flatMap(diag => diag.fix?.edits || []).map((edit): vscode.TextEdit => {
       return {
@@ -350,7 +350,35 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }
     return [RuffCode.UNUSED_IMPORT];
   }
+
+  private runRuffConfig(text: string, ruffConfig: RuffConfig): [Diagnostic[], boolean] {
+    let isortConfig;
+    try {
+      isortConfig = new Workspace(ruffConfig);
+      return [isortConfig.check(text), true];
+    } catch (e) {
+      vscode.window.showErrorMessage(`Failed to create ruff config: ${e}`);
+      return [[], false];
+    }
+  }
 }
 
 // This method is called when your extension is deactivated
 export function deactivate() { }
+
+
+// Below are just typed Ruff object definitions
+interface RuffConfig {
+  lint: LintConfig;
+}
+
+interface LintConfig {
+  select?: string[];
+  isort?: ISortConfig;
+}
+
+interface ISortConfig {
+  'required-imports'?: string[];
+  'lines-after-imports'?: number;
+  'combine-as-imports'?: boolean;
+}
