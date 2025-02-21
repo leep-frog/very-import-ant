@@ -228,16 +228,23 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     // Fortunately, it's not too, too difficult to iterate ourselves,
     // but we should look to thoroughly test this logic.
 
+    const ruffConfigs: RuffConfig[] = [
+      this.addImportsConfig(document, importsToAdd),
+    ];
+
     // TODO: Do prevSize and allEdits.length comparison, but need to be careful
     // if removing unused imports keeps removing required imports.
     let prevText = text + "a";
     for (let i = 0; prevText !== text; i++) {
       prevText = text;
-      const [edittedText, successs] = this.addImports(document, text, importsToAdd, allEdits);
-      if (!successs) {
-        return;
+
+      for (const ruffConfig of ruffConfigs) {
+        const [edittedText, successs] = this.applyRuffConfig(text, allEdits, ruffConfig);
+        if (!successs) {
+          return;
+        }
+        text = edittedText;
       }
-      text = edittedText;
 
       // Stop if recursion is appearing to get into a cycle.
       if (i > RUFF_FORMAT_DEPTH_LIMIT) {
@@ -276,8 +283,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   //   }
   // }
 
-  private addImports(document: vscode.TextDocument, text: string, importsToAdd: string[], editList: vscode.TextEdit[][]): [string, boolean] {
-    return this.applyRuffConfig(text, editList, {
+  private addImportsConfig(document: vscode.TextDocument, importsToAdd: string[]): RuffConfig {
+    return {
       lint: {
         select: [
           RuffCode.UNSORTED_IMPORTS,
@@ -290,7 +297,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
           'combine-as-imports': true,
         },
       },
-    });
+    };
   }
 
   private applyRuffConfig(text: string, editList: vscode.TextEdit[][], ruffConfig: RuffConfig): [string, boolean] {
