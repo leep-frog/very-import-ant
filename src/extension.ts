@@ -251,11 +251,6 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
         const variableName = match?.at(1);
         if (!variableName) {
-          // Ignore syntax errors
-          if (diagnostic.message.startsWith("SyntaxError")) {
-            return [];
-          }
-
           vscode.window.showErrorMessage(`Undefined variable could not be determined from error message (${JSON.stringify(diagnostic)})`);
           return [];
         }
