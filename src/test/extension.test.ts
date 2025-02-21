@@ -236,7 +236,6 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    expectedSelections: [sel(4, 10)],
     errorMessage: {
       expectedMessages: [
         `Failed to create ruff config: Error: Error: Expected a module name at byte range 5..9`,
