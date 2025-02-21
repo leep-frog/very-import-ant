@@ -166,7 +166,6 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   formatDocument(document: vscode.TextDocument): vscode.ProviderResult<vscode.TextEdit[]> {
-
     if (!this.settings.enabled) {
       vscode.window.showErrorMessage("The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings");
       return;
@@ -174,45 +173,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     const text = document.getText();
 
-    // Find all undefined variables
-    const [diagnostics, ok] = this.runRuffConfig(text, {
-      lint: {
-        select: [
-          RuffCode.UNDEFINED_NAME,
-          ...this.getUnusedImportConfig(document),
-        ],
-      },
-    });
+    const [importsToAdd, ok] = this.determineImports(document, text);
     if (!ok) {
-      return;
-    }
-
-    this.outputChannel.log(`ruff diagnosticts: ${JSON.stringify(diagnostics)}`);
-
-    // Map all undefined variables to their imports (if included in settings)
-    const importsToAdd = [...new Set([
-      ...this.getAlwaysImports(document),
-      ...new Set(diagnostics.filter(diagnostic => diagnostic.code === RuffCode.UNDEFINED_NAME).flatMap((diagnostic) => {
-
-        const match = LINT_ERROR_REGEX.exec(diagnostic.message);
-
-        const variableName = match?.at(1);
-        if (!variableName) {
-          // Ignore syntax errors
-          if (diagnostic.message.startsWith("SyntaxError")) {
-            return [];
-          }
-
-          vscode.window.showErrorMessage(`Undefined variable could not be determined from error message (${JSON.stringify(diagnostic)})`);
-          return [];
-        }
-
-        return this.settings.autoImports.get(variableName) || [];
-      })),
-    ])];
-
-    const hasUnusedImports = diagnostics.filter(diagnostic => diagnostic.code === RuffCode.UNUSED_IMPORT);
-    if (!hasUnusedImports && !importsToAdd.length) {
       return;
     }
 
@@ -229,7 +191,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     // but we should look to thoroughly test this logic.
 
     const ruffConfigs: RuffConfig[] = [
-      this.addImportsConfig(document, importsToAdd),
+      this.addImportsConfig(importsToAdd),
+      ...this.removeUnusedImportsConfigs(document),
     ];
 
     // TODO: Do prevSize and allEdits.length comparison, but need to be careful
@@ -266,30 +229,77 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }];
   }
 
-  // private removeUnusedImports(document: vscode.TextDocument, text: string, editList: vscode.TextEdit[][]): [string, boolean] {
-  //   if (!this.settings.removeUnusedImports) {
-  //     return [text, true];
-  //   }
+  private determineImports(document: vscode.TextDocument, text: string): [string[], boolean] {
+    // Find all undefined variables
+    const [diagnostics, ok] = this.runRuffConfig(text, {
+      lint: {
+        select: [
+          RuffCode.UNDEFINED_NAME,
+        ],
+      },
+    });
+    if (!ok) {
+      return [[], false];
+    }
 
-  //   const [diags, ok] = this.runRuffConfig(text, {
-  //     lint: {
-  //       select: [
-  //         RuffCode.UNUSED_IMPORT,
-  //       ],
-  //     }
-  //   });
-  //   if (!ok) {
-  //     return ["", false];
-  //   }
-  // }
+    // Map all undefined variables to their imports (if included in settings)
+    return [[...new Set([
+      ...this.getAlwaysImports(document),
+      ...new Set(diagnostics.filter(diagnostic => diagnostic.code === RuffCode.UNDEFINED_NAME).flatMap((diagnostic) => {
 
-  private addImportsConfig(document: vscode.TextDocument, importsToAdd: string[]): RuffConfig {
+        const match = LINT_ERROR_REGEX.exec(diagnostic.message);
+
+        const variableName = match?.at(1);
+        if (!variableName) {
+          // Ignore syntax errors
+          if (diagnostic.message.startsWith("SyntaxError")) {
+            return [];
+          }
+
+          vscode.window.showErrorMessage(`Undefined variable could not be determined from error message (${JSON.stringify(diagnostic)})`);
+          return [];
+        }
+
+        return this.settings.autoImports.get(variableName) || [];
+      })),
+    ])], true];
+  }
+
+  private getAlwaysImports(document: vscode.TextDocument): string[] {
+    // We don't want to always import in notebook mode, but if we do
+    // just add a separate setting per scheme (notebook vs python).
+    // There is an open VS Code issue to have this natively: https://github.com/microsoft/vscode/issues/195011
+    // so perhaps we can just leave as is until that is implemented.
+    if (document.uri.scheme === NOTEBOOK_SCHEME) {
+      return [];
+    }
+    return this.settings.alwaysImport;
+  }
+
+  private removeUnusedImportsConfigs(document: vscode.TextDocument): RuffConfig[] {
+    // Same reasoning as getAlwaysImport above
+    if (document.uri.scheme === NOTEBOOK_SCHEME || !this.settings.removeUnusedImports) {
+      return [];
+    }
+    return [{
+      lint: {
+        select: [
+          RuffCode.UNUSED_IMPORT,
+          RuffCode.MISSING_REQUIRED_IMPORT,
+        ],
+        isort: {
+          "required-imports": this.getAlwaysImports(document)
+        },
+      }
+    }];
+  }
+
+  private addImportsConfig(importsToAdd: string[]): RuffConfig {
     return {
       lint: {
         select: [
           RuffCode.UNSORTED_IMPORTS,
           RuffCode.MISSING_REQUIRED_IMPORT,
-          ...this.getUnusedImportConfig(document),
         ],
         isort: {
           'required-imports': importsToAdd,
@@ -375,25 +385,6 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }
 
     return editLines.join("");
-  }
-
-  private getAlwaysImports(document: vscode.TextDocument): string[] {
-    // We don't want to always import in notebook mode, but if we do
-    // just add a separate setting per scheme (notebook vs python).
-    // There is an open VS Code issue to have this natively: https://github.com/microsoft/vscode/issues/195011
-    // so perhaps we can just leave as is until that is implemented.
-    if (document.uri.scheme === NOTEBOOK_SCHEME) {
-      return [];
-    }
-    return this.settings.alwaysImport;
-  }
-
-  private getUnusedImportConfig(document: vscode.TextDocument): string[] {
-    // Same reasoning as getAlwaysImport above
-    if (document.uri.scheme === NOTEBOOK_SCHEME || !this.settings.removeUnusedImports) {
-      return [];
-    }
-    return [RuffCode.UNUSED_IMPORT];
   }
 
   private runRuffConfig(text: string, ruffConfig: RuffConfig): [Diagnostic[], boolean] {
