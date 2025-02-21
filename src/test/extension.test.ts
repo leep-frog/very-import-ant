@@ -197,21 +197,6 @@ const testCases: TestCase[] = [
     expectedSelections: [sel(1, 0)],
   },
   {
-    name: "Ignores unsupported undefined variable name",
-    settings: defaultSettings(),
-    fileContents: [
-      "def func():",
-      "    _ = idk",
-    ],
-    userInteractions: [
-      formatDoc(),
-    ],
-    expectedText: [
-      "def func():",
-      "    _ = idk",
-    ],
-  },
-  {
     name: "Handles more syntax errors",
     settings: defaultSettings(),
     fileContents: [
@@ -232,6 +217,47 @@ const testCases: TestCase[] = [
       "    _ = pd",
     ],
     expectedSelections: [sel(4, 10)],
+  },
+  {
+    name: "Handles syntax error in autoImports",
+    settings: defaultSettings({
+      autoImports: [{ variable: "pd", import: "from else import somewhere" }],
+    }),
+    fileContents: [
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(4, 10)],
+    errorMessage: {
+      expectedMessages: [
+        `Failed to create ruff config: Error: Error: Expected a module name at byte range 5..9`,
+      ],
+    }
+  },
+  {
+    name: "Ignores unsupported undefined variable name",
+    settings: defaultSettings(),
+    fileContents: [
+      "def func():",
+      "    _ = idk",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "def func():",
+      "    _ = idk",
+    ],
+    expectedSelections: [sel(1, 11)],
   },
   {
     name: "Handles invalid import (as the file text will be idenitcal before and after, so iteration ends)",
@@ -259,7 +285,7 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    expectedSelections: [sel(1, 0)],
+    expectedSelections: [sel(3, 10)],
   },
   {
     name: "Adds import for single supported variable when indentation is included",
@@ -280,7 +306,7 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    expectedSelections: [sel(4, 10)],
+    expectedSelections: [sel(1, 0)],
   },
   {
     name: "Adds import when module doc included",
