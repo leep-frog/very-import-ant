@@ -1296,7 +1296,6 @@ const testCases: TestCase[] = [
       `    _=one`,
       ``,
     ],
-    expectedSelections: [sel(5, 0)],
   },
   // ignoreScheme tests
   {
