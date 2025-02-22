@@ -39,7 +39,13 @@ class TruncatedOutputChannel {
     this.logs = [];
   }
 
-  log(message: string) {
+  log(message: string, reset?: boolean) {
+
+    if (reset) {
+      this.outputChannel.clear();
+      this.logs = [];
+    }
+
     this.logs.push(message);
     if (this.logs.length > 1000) {
       this.logs = this.logs.slice(900);
@@ -144,24 +150,24 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   provideDocumentFormattingEdits(document: vscode.TextDocument, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    this.outputChannel.log('Formatting doc');
+    this.outputChannel.log('Formatting doc', true);
     return this.formatDocument(document, true);
   }
 
   provideDocumentRangeFormattingEdits(document: vscode.TextDocument, range: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    this.outputChannel.log(`Formatting range`);
+    this.outputChannel.log(`Formatting range`, true);
     // TODO: have ruff only inspect the range
     return this.formatDocument(document, false);
   }
 
   provideDocumentRangesFormattingEdits(document: vscode.TextDocument, ranges: vscode.Range[], options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    this.outputChannel.log(`Formatting ranges`);
+    this.outputChannel.log(`Formatting ranges`, true);
     // TODO: have ruff only inspect the range
     return this.formatDocument(document, false);
   }
 
   provideOnTypeFormattingEdits(document: vscode.TextDocument, position: vscode.Position, ch: string, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
-    this.outputChannel.log(`Formatting on type (ch:${ch})`);
+    this.outputChannel.log(`Formatting on type (ch:${ch})`, true);
     return this.formatDocument(document, false);
   }
 
@@ -314,7 +320,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return ["", false];
     }
 
-    this.outputChannel.log(`Pre merged edits: ${JSON.stringify(diags)}`);
+    this.outputChannel.log(`Pre merged edits:`);
+    for (const diag of diags) {
+      this.outputChannel.log(JSON.stringify(diag.fix));
+    }
 
     return [this.applyDiagnosticEdits(text, diags, editList), true];
   }

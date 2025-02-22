@@ -641,6 +641,35 @@ const testCases: TestCase[] = [
       "_ = one",
     ],
   },
+  {
+    name: "Handles ruff fixes that intersect only at a single character (a range where range.isEmpty() is true)",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+    }),
+    fileContents: [
+      `from __future__ import annotations`,
+      ``,
+      `import traceback`,
+      `from typing import Any, Callable, Dict`,
+      ``,
+      `def func() -> Any:`,
+      `    pass`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({ doesNotContainText: "traceback" }),
+    ],
+    expectedText: [
+      `from __future__ import annotations`,
+      ``,
+      `from typing import Any`,
+      ``,
+      ``,
+      `def func() -> Any:`,
+      `    pass`,
+      ``,
+    ],
+  },
   // Test format triggering
   {
     name: "Format onSave fixes everything",
