@@ -1677,6 +1677,169 @@ const testCases: TestCase[] = [
   // TODO: untitled file tests (for both actual fixing and ignoring scheme
   // Probably will need to use new python file command to test this
 
+  // Test import block styles
+  {
+    name: "Converts import block to one line",
+    settings: defaultSettings(),
+    fileContents: [
+      "from typing import (",
+      "    Any",
+      ")",
+      "",
+      "def func() -> Any:",
+      "    pass",
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      "from typing import Any",
+      "",
+      "",
+      "def func() -> Any:",
+      "    pass",
+    ],
+  },
+  {
+    name: "Converts import block with trailing comma to one line",
+    runSolo: true,
+    settings: defaultSettings({
+      removeUnusedImports: true,
+    }),
+    fileContents: [
+      "from typing import (",
+      "    Any,",
+      ")",
+      "",
+      "def func() -> Any:",
+      "    pass",
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      "from typing import Any",
+      "",
+      "",
+      "def func() -> Any:",
+      "    pass",
+    ],
+  },
+  {
+    name: "Removal of import in import block with no trailing comma gets condensed to one line",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+    }),
+    fileContents: [
+      "from typing import (",
+      "    Any,",
+      "    Dict,",
+      "    Optional",
+      ")",
+      "",
+      "def func(d: Optional[str]) -> Any:",
+      "    pass",
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      "from typing import Any, Optional",
+      "",
+      "",
+      "def func(d: Optional[str]) -> Any:",
+      "    pass",
+    ],
+  },
+  {
+    name: "Removal of import in import block with trailing comma gets condensed to one line",
+    settings: defaultSettings(),
+    fileContents: [
+      "from typing import Any, Optional",
+      "",
+      "def func(d: Optional[str]) -> Any:",
+      "    pass",
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      "from typing import Any, Optional",
+      "",
+      "",
+      "def func(d: Optional[str]) -> Any:",
+      "    pass",
+    ],
+  },
+  {
+    name: "Really long import line gets converted to multi-line",
+    settings: defaultSettings(),
+    fileContents: [
+      "from typing import Another, Any, Basically, Dict, Finally, Optional, Other, Donzo",
+      "",
+      "def func():",
+      "    pass",
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      `from typing import (`,
+      `    Another,`,
+      `    Any,`,
+      `    Basically,`,
+      `    Dict,`,
+      `    Donzo,`,
+      `    Finally,`,
+      `    Optional,`,
+      `    Other,`,
+      `)`,
+      "",
+      "",
+      "def func():",
+      "    pass",
+    ],
+  },
+  {
+    name: "Really long import block gets comma added",
+    settings: defaultSettings(),
+    fileContents: [
+      `from typing import (`,
+      `    Another,`,
+      `    Any,`,
+      `    Basically,`,
+      `    Dict,`,
+      `    Donzo,`,
+      `    Finally,`,
+      `    Optional,`,
+      `    Other`,
+      `)`,
+      "",
+      "def func():",
+      "    pass",
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      `from typing import (`,
+      `    Another,`,
+      `    Any,`,
+      `    Basically,`,
+      `    Dict,`,
+      `    Donzo,`,
+      `    Finally,`,
+      `    Optional,`,
+      `    Other,`,
+      `)`,
+      "",
+      "",
+      "def func():",
+      "    pass",
+    ],
+  },
+
+
   /* Useful for commenting out tests. */
 ];
 

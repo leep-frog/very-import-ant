@@ -308,7 +308,12 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
           'required-imports': importsToAdd,
           'lines-after-imports': fullFormat ? 2 : undefined,
           'combine-as-imports': true,
+          "split-on-trailing-comma": false,
         },
+      },
+      "line-length": 80,
+      format: {
+        "skip-magic-trailing-comma": true,
       },
     };
   }
@@ -412,6 +417,8 @@ export function deactivate() { }
 // Below are just typed Ruff object definitions
 interface RuffConfig {
   lint: LintConfig;
+  format?: FormatConfig;
+  'line-length'?: number;
 }
 
 interface LintConfig {
@@ -423,4 +430,11 @@ interface ISortConfig {
   'required-imports'?: string[];
   'lines-after-imports'?: number;
   'combine-as-imports'?: boolean;
+  // If we ever want a different import block style, see the below link:
+  // https://pycqa.github.io/isort/docs/configuration/multi_line_output_modes.html
+  'split-on-trailing-comma'?: boolean;
+}
+
+interface FormatConfig {
+  'skip-magic-trailing-comma'?: boolean;
 }

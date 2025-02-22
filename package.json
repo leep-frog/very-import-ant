@@ -2,7 +2,7 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "",
-  "version": "2.7.0",
+  "version": "2.7.1",
   "icon": "logo.png",
   "publisher": "groogle",
   "license": "MIT",
@@ -153,7 +153,7 @@
   },
   "dependencies": {
     "@astral-sh/ruff-wasm-nodejs": "^0.8.5",
-    "@leep-frog/vscode-test-stubber": "^2.0.2",
+    "@leep-frog/vscode-test-stubber": "^2.0.3",
     "ts-node": "^10.9.2"
   }
 }
