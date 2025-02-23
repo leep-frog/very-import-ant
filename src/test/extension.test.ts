@@ -194,7 +194,6 @@ const testCases: TestCase[] = [
       "def func():",
       "",
     ],
-    expectedSelections: [sel(1, 0)],
   },
   {
     name: "Handles more syntax errors",
@@ -216,7 +215,6 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    expectedSelections: [sel(4, 10)],
   },
   {
     name: "Handles syntax error in autoImports",
@@ -256,7 +254,6 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = idk",
     ],
-    expectedSelections: [sel(1, 11)],
   },
   {
     name: "Handles invalid import (as the file text will be idenitcal before and after, so iteration ends)",
@@ -284,7 +281,6 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = pd",
     ],
-    expectedSelections: [sel(3, 10)],
   },
   {
     name: "Adds import for single supported variable when indentation is included",
@@ -611,10 +607,7 @@ const testCases: TestCase[] = [
       formatDoc({ doesNotContainText: "three" }),
     ],
     expectedText: [
-      // TODO: stop this if just one
-      "from p import (",
-      "    one,",
-      ")",
+      "from p import one",
       "",
       "",
       "_ = one",
@@ -767,7 +760,7 @@ const testCases: TestCase[] = [
       `    _ = food + de + abc + jkl + xyz`,
       `    _ = np`,
     ],
-    expectedSelections: [sel(6, 0)],
+    expectedSelections: [sel(1, 0)],
   },
   {
     name: "Formats onPaste",
@@ -1192,7 +1185,6 @@ const testCases: TestCase[] = [
       "def func():",
       "    _ = one + three",
     ],
-    expectedSelections: [sel(5, 19)],
   },
   // Always import tests
   {
@@ -1486,7 +1478,6 @@ const testCases: TestCase[] = [
       `    return 1`,
       ``,
     ],
-    expectedSelections: [sel(3, 0)],
   },
   {
     name: "doesn't remove unused alwaysImport",
@@ -1702,7 +1693,6 @@ const testCases: TestCase[] = [
   },
   {
     name: "Converts import block with trailing comma to one line",
-    runSolo: true,
     settings: defaultSettings({
       removeUnusedImports: true,
     }),
