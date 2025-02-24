@@ -239,6 +239,42 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
   private determineImports(document: vscode.TextDocument, text: string): [string[], boolean] {
     // Find all undefined variables
+    let [undefinedImports, ok] = this.findUndefinedVariables(text);
+    if (!ok) {
+      return [[], false];
+    }
+
+    if (document.uri.scheme === NOTEBOOK_SCHEME) {
+      // Get the NotebookDocument from the active text document
+      const notebook = vscode.workspace.notebookDocuments.find(nb =>
+        nb.getCells().some(cell => cell.document.uri.toString() === document.uri.toString())
+      );
+      if (!notebook) {
+        vscode.window.showErrorMessage(`Failed to get NotebookDocument reference from TextDocument!`);
+        return [[], false];
+      }
+
+      // Run ruff on the merged text from all code cells
+      const allCellText = notebook.getCells().filter(cell => cell.kind === vscode.NotebookCellKind.Code).map(cell => cell.document.getText()).join("\n\n");
+      const [undefinedFileImports, ok] = this.findUndefinedVariables(allCellText);
+      if (!ok) {
+        return [[], false];
+      }
+
+      // Take the intersection of the two sets so that we only consider imports
+      // that are needed when both the single cell and the entire document have
+      // the undefined name reference.
+      undefinedImports = new Set<string>([...undefinedImports].filter(imp => undefinedFileImports.has(imp)));
+    }
+
+    return [[...new Set([
+      ...this.getAlwaysImports(document),
+      ...undefinedImports,
+    ])], true];
+  }
+
+  private findUndefinedVariables(text: string): [Set<string>, boolean] {
+    // Find all undefined variables
     const [diagnostics, ok] = this.runRuffConfig(text, {
       lint: {
         select: [
@@ -247,25 +283,24 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       },
     });
     if (!ok) {
-      return [[], false];
+      return [new Set(), false];
     }
 
     // Map all undefined variables to their imports (if included in settings)
-    return [[...new Set([
-      ...this.getAlwaysImports(document),
-      ...new Set(diagnostics.filter(diagnostic => diagnostic.code === RuffCode.UNDEFINED_NAME).flatMap((diagnostic) => {
+    const undefinedImports = new Set(diagnostics.filter(diagnostic => diagnostic.code === RuffCode.UNDEFINED_NAME).flatMap((diagnostic) => {
 
-        const match = LINT_ERROR_REGEX.exec(diagnostic.message);
+      const match = LINT_ERROR_REGEX.exec(diagnostic.message);
 
-        const variableName = match?.at(1);
-        if (!variableName) {
-          vscode.window.showErrorMessage(`Undefined variable could not be determined from error message (${JSON.stringify(diagnostic)})`);
-          return [];
-        }
+      const variableName = match?.at(1);
+      if (!variableName) {
+        vscode.window.showErrorMessage(`Undefined variable could not be determined from error message (${JSON.stringify(diagnostic)})`);
+        return [];
+      }
 
-        return this.settings.autoImports.get(variableName) || [];
-      })),
-    ])], true];
+      return this.settings.autoImports.get(variableName) || [];
+    }));
+
+    return [undefinedImports, true];
   }
 
   private getAlwaysImports(document: vscode.TextDocument): string[] {

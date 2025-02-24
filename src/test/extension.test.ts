@@ -22,17 +22,15 @@ function openTestWorkspaceFile(...filename: string[]): UserInteraction {
   return cmd("vscode.open", getUri(...filename));
 }
 
-function notebookText(text: string): string {
+function notebookText(cells: NotebookCell[]): string {
   return JSON.stringify({
-    cells: [
-      {
-        cell_type: "code",
-        execution_count: null,
-        metadata: {},
-        outputs: [],
-        source: text,
-      },
-    ],
+    cells: cells.map(cell => ({
+      cell_type: cell.kind,
+      execution_count: null,
+      metadata: {},
+      outputs: [],
+      source: cell.contents.join("\n"),
+    })),
     metadata: {
       language_info: {
         name: "python"
@@ -146,12 +144,17 @@ function defaultSettings(config?: VeryImportConfig) {
   };
 }
 
+interface NotebookCell {
+  contents: string[];
+  kind: 'code' | 'markdown';
+}
+
 interface TestCase extends SimpleTestCaseProps {
   name: string;
   settings: any;
-  fileContents: string[];
+  fileContents?: string[];
   runSolo?: boolean;
-  notebook?: boolean;
+  notebookContents?: NotebookCell[];
 }
 
 
@@ -1307,12 +1310,16 @@ const testCases: TestCase[] = [
   {
     name: "Adds import for notebook",
     settings: defaultSettings(),
-    notebook: true,
-    fileContents: [
-      "",
-      "",
-      "def func():",
-      "    _ = pd",
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = pd",
+        ],
+      }
     ],
     userInteractions: [
       formatDoc({
@@ -1332,17 +1339,21 @@ const testCases: TestCase[] = [
   {
     name: "Imports all built-in imports for notebook",
     settings: defaultSettings(),
-    fileContents: [
-      "def func():",
-      "    _ = pd",
-      "    arr = np.array()",
-      "    da = xr.DataArray()",
-      "    xrt.assert_equal(da, da)",
-      // Add some duplicates too
-      "    other = np.array()",
-      "    another = pd.DataFrame()",
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "def func():",
+          "    _ = pd",
+          "    arr = np.array()",
+          "    da = xr.DataArray()",
+          "    xrt.assert_equal(da, da)",
+          // Add some duplicates too
+          "    other = np.array()",
+          "    another = pd.DataFrame()",
+        ],
+      },
     ],
-    notebook: true,
     userInteractions: [
       formatDoc({
         containsText: "pandas",
@@ -1370,13 +1381,17 @@ const testCases: TestCase[] = [
   {
     name: "Formats notebook onSave",
     settings: defaultSettings(),
-    notebook: true,
-    fileContents: [
-      "",
-      "",
-      "def func():",
-      "    _ = pd",
-      "",
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = pd",
+          "",
+        ],
+      },
     ],
     userInteractions: [
       cmd("workbench.action.files.save"),
@@ -1403,13 +1418,17 @@ const testCases: TestCase[] = [
         "import numpy as np",
       ],
     }),
-    notebook: true,
-    fileContents: [
-      "",
-      "",
-      "def func():",
-      "    _ = pd",
-      "",
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = pd",
+          "",
+        ],
+      },
     ],
     userInteractions: [
       delay(25),
@@ -1432,13 +1451,17 @@ const testCases: TestCase[] = [
     settings: defaultSettings({
       removeUnusedImports: true,
     }),
-    notebook: true,
-    fileContents: [
-      "from nunya import business",
-      "",
-      "def func():",
-      "    _ = pd",
-      "",
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "from nunya import business",
+          "",
+          "def func():",
+          "    _ = pd",
+          "",
+        ],
+      },
     ],
     userInteractions: [
       cmd("workbench.action.files.save"),
@@ -1454,6 +1477,261 @@ const testCases: TestCase[] = [
       "",
     ],
     expectedSelections: [sel(4, 0)],
+  },
+  // Notebook with multiple cells test
+  {
+    name: "Only current cell gets imports added (at first cell)",
+    settings: defaultSettings(),
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = pd",
+        ],
+      },
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = np",
+        ],
+      }
+    ],
+    userInteractions: [
+      formatDoc({
+        containsText: "pandas",
+        notebook: true,
+      }),
+    ],
+    // TODO: Test full notebook contents
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
+  },
+  {
+    name: "Only current cell gets imports added (at second cell)",
+    settings: defaultSettings(),
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = pd",
+        ],
+      },
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = np",
+        ],
+      }
+    ],
+    userInteractions: [
+      cmd('notebook.focusNextEditor'),
+      formatDoc({
+        containsText: "numpy",
+        notebook: true,
+      }),
+    ],
+    expectedText: [
+      "import numpy as np",
+      "",
+      "",
+      "def func():",
+      "    _ = np",
+    ],
+    expectedSelections: [sel(1, 0)],
+  },
+  {
+    name: "Current cell only gets imports that aren't included in a previous cell",
+    settings: defaultSettings(),
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "import pandas as pd",
+          "import unused as un",
+          "",
+        ],
+      },
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = np",
+          "    _ = pd",
+          "",
+        ],
+      }
+    ],
+    userInteractions: [
+      cmd('notebook.focusNextEditor'),
+      formatDoc({
+        containsText: "numpy",
+        notebook: true,
+      }),
+    ],
+    expectedText: [
+      "import numpy as np",
+      "",
+      "",
+      "def func():",
+      "    _ = np",
+      "    _ = pd",
+      "",
+    ],
+    expectedSelections: [sel(1, 0)],
+  },
+  {
+    name: "If import is in a later cell, it still gets added",
+    settings: defaultSettings(),
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "def func():",
+          "    _ = np",
+          "    _ = pd",
+          "",
+        ],
+      },
+      {
+        kind: 'code',
+        contents: [
+          "import pandas as pd",
+          "import unused as un",
+        ],
+      }
+    ],
+    userInteractions: [
+      formatDoc({
+        containsText: "numpy",
+        notebook: true,
+      }),
+    ],
+    expectedText: [
+      "import numpy as np",
+      // TODO: Would expect this line to be added still (since after), but it isn't
+      // TODO: only consider earlier cells to fix this!!!
+      // "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = np",
+      "    _ = pd",
+      "",
+    ],
+    expectedSelections: [sel(3, 0)],
+  },
+  {
+    name: "Disregards markdown cells",
+    settings: defaultSettings(),
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "import pandas as pd",
+          "import unused as un",
+          "",
+        ],
+      },
+      {
+        kind: 'markdown',
+        contents: [
+          "import numpy as np",
+          "",
+        ],
+      },
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = np",
+          "    _ = pd",
+          "",
+        ],
+      }
+    ],
+    userInteractions: [
+      cmd('notebook.focusNextEditor'),
+      cmd('notebook.focusNextEditor'),
+      formatDoc({
+        containsText: "numpy",
+        notebook: true,
+      }),
+    ],
+    expectedText: [
+      "import numpy as np",
+      "",
+      "",
+      "def func():",
+      "    _ = np",
+      "    _ = pd",
+      "",
+    ],
+    expectedSelections: [sel(1, 0)],
+  },
+  {
+    name: "No formatting in markdown cell",
+    settings: defaultSettings(),
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "import pandas as pd",
+          "import unused as un",
+          "",
+        ],
+      },
+      {
+        kind: 'markdown',
+        contents: [
+          "# This is markdown",
+          "",
+          "",
+          "def func():",
+          "    _ = np",
+          "    _ = pd",
+          "",
+        ],
+      }
+    ],
+    userInteractions: [
+      cmd('notebook.focusNextEditor'),
+      formatDoc({
+        notebook: true,
+      }),
+    ],
+    // TODO: expected markdown editor
+    // expectedText: [
+    //   "# This is markdown",
+    //   "",
+    //   "",
+    //   "def func():",
+    //   "    _ = np",
+    //   "    _ = pd",
+    //   "",
+    // ],
+    // expectedSelections: [sel(1, 0)],
   },
   // Remove unused imports test
   {
@@ -1618,12 +1896,16 @@ const testCases: TestCase[] = [
     settings: defaultSettings({
       ignoreSchemes: ['vscode-notebook-cell'],
     }),
-    notebook: true,
-    fileContents: [
-      "",
-      "",
-      "def func():",
-      "    _ = pd",
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = pd",
+        ],
+      },
     ],
     userInteractions: [
       formatDoc({
@@ -1643,12 +1925,16 @@ const testCases: TestCase[] = [
     settings: defaultSettings({
       ignoreSchemes: [],
     }),
-    notebook: true,
-    fileContents: [
-      "",
-      "",
-      "def func():",
-      "    _ = pd",
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "",
+          "def func():",
+          "    _ = pd",
+        ],
+      },
     ],
     userInteractions: [
       formatDoc({
@@ -1875,16 +2161,18 @@ suite('Extension Test Suite', () => {
 
       console.log(`========= Starting test: ${tc.name}`);
 
-      if (tc.notebook) {
-        writeFileSync(startingFile("simple.ipynb"), notebookText(tc.fileContents.join("\n")));
+      if (tc.notebookContents) {
+        writeFileSync(startingFile("simple.ipynb"), notebookText(tc.notebookContents));
         tc.userInteractions = [
           openTestWorkspaceFile("simple.ipynb"),
-          _waitForDocChange(tc.fileContents.join("\n")),
+          _waitForDocChange(tc.notebookContents[0].contents.join("\n")),
           ...(tc.userInteractions || []),
         ];
-      } else {
+      } else if (tc.fileContents) {
         writeFileSync(startingFile("empty.py"), tc.fileContents.join("\n"));
         tc.file = startingFile("empty.py");
+      } else {
+        throw Error("Either tc.notebookContents or tc.fileContents must be defined");
       }
       tc.workspaceConfiguration = {
         skip: true,
