@@ -6,6 +6,8 @@ coverage/
 bundled-out/
 
 # These files are changed in each test
-src/test/test-workspace/.vscode/settings.json
-src/test/test-workspace/empty.py
-src/test/test-workspace/simple.ipynb
+src/test/test-workspace/.vscode/*
+src/test/test-workspace/*
+# Keep the folders though
+!src/test/test-workspace/.vscode/blank.txt
+!src/test/test-workspace/blank.txt
