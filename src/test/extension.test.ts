@@ -105,6 +105,7 @@ interface VeryImportConfig {
   }[],
   alwaysImport?: string[];
   removeUnusedImports?: boolean;
+  organizeImports?: boolean;
   ignoreSchemes?: string[];
 }
 
@@ -134,6 +135,7 @@ function defaultSettings(config?: VeryImportConfig) {
     "files.eol": "\n",
     "very-import-ant.format.enable": config?.enabled ?? true,
     "very-import-ant.removeUnusedImports": config?.removeUnusedImports ?? false,
+    "very-import-ant.organizeImports": config?.organizeImports ?? true,
     "very-import-ant.alwaysImport": config?.alwaysImport ?? [],
     "very-import-ant.ignoreSchemes": config?.ignoreSchemes ?? [],
     "very-import-ant.onTypeTriggerCharacters": config?.onTypeTriggerCharacters,
@@ -665,6 +667,121 @@ const testCases: TestCase[] = [
       `def func() -> Any:`,
       `    pass`,
       ``,
+    ],
+  },
+  // Organize import tests
+  {
+    name: "Organizes imports",
+    settings: defaultSettings(),
+    fileContents: [
+      "import pandas as pd",
+      "from numbers import two",
+      "import numpy as np",
+      "",
+      "from numbers import three, one",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "from numbers import one, three, two",
+      "",
+      "import numpy as np",
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+  },
+  {
+    name: "Doesn't organize imports if organizeImports is false",
+    settings: defaultSettings({
+      organizeImports: false,
+    }),
+    fileContents: [
+      "import pandas as pd",
+      "from numbers import two",
+      "import numpy as np",
+      "",
+      "from numbers import three, one",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "from numbers import two",
+      "import numpy as np",
+      "",
+      "from numbers import three, one",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+  },
+  {
+    name: "Organizes import when adding an import",
+    settings: defaultSettings(),
+    fileContents: [
+      "import pandas as pd",
+      "from numbers import two",
+      "import numpy as np",
+      "",
+      "from numbers import three, one",
+      "",
+      "def func():",
+      "    _ = xr",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "from numbers import one, three, two",
+      "",
+      "import numpy as np",
+      "import pandas as pd",
+      "import xarray as xr",
+      "",
+      "",
+      "def func():",
+      "    _ = xr",
+    ],
+  },
+  {
+    name: "Doesn't organize imports when adding an import if organizeImports is false",
+    settings: defaultSettings({
+      organizeImports: false,
+    }),
+    fileContents: [
+      "import pandas as pd",
+      "from numbers import two",
+      "import numpy as np",
+      "",
+      "from numbers import three, one",
+      "",
+      "def func():",
+      "    _ = xr",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "import xarray as xr",
+      "import pandas as pd",
+      "from numbers import two",
+      "import numpy as np",
+      "",
+      "from numbers import three, one",
+      "",
+      "def func():",
+      "    _ = xr",
     ],
   },
   // Test format triggering

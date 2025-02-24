@@ -83,6 +83,7 @@ interface VeryImportantSettings {
   autoImports: Map<string, string[]>;
   alwaysImport: string[];
   removeUnusedImports: boolean;
+  organizeImports: boolean;
   reloadableRegistrations: vscode.Disposable[];
 }
 
@@ -147,6 +148,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       reloadableRegistrations: newRegistrations,
       alwaysImport: config.get<string[]>("alwaysImport", []),
       removeUnusedImports: config.get<boolean>("removeUnusedImports", false),
+      organizeImports: config.get<boolean>("organizeImports", false),
     };
   }
 
@@ -350,7 +352,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     return {
       lint: {
         select: [
-          ...(fullFormat ? [RuffCode.UNSORTED_IMPORTS] : []),
+          ...((fullFormat && this.settings.organizeImports) ? [RuffCode.UNSORTED_IMPORTS] : []),
           RuffCode.MISSING_REQUIRED_IMPORT,
         ],
         isort: {

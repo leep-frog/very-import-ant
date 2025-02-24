@@ -2,7 +2,7 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "",
-  "version": "2.8.1",
+  "version": "2.8.2",
   "icon": "logo.png",
   "publisher": "groogle",
   "license": "MIT",
@@ -46,6 +46,11 @@
         },
         "very-import-ant.removeUnusedImports": {
           "description": "Whether or not to remove unused imports",
+          "default": false,
+          "type": "boolean"
+        },
+        "very-import-ant.organizeImports": {
+          "description": "Whether or not to organize imports",
           "default": false,
           "type": "boolean"
         },
