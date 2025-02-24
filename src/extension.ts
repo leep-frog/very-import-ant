@@ -129,13 +129,17 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     const ignoreSchemes = new Set<string>(config.get<string[]>("ignoreSchemes", []));
     const activeSchemes = ALL_SUPPORTED_SCHEMES.filter(scheme => !ignoreSchemes.has(scheme));
 
+    const enabled = config.get<boolean>("format.enable", false);
+
     const newRegistrations = [];
-    for (const scheme of activeSchemes) {
-      newRegistrations.push(
-        vscode.languages.registerOnTypeFormattingEditProvider(documentSelector(scheme), this, otc.at(0) || "\n", ...otc.slice(1)),
-        vscode.languages.registerDocumentFormattingEditProvider(documentSelector(scheme), this),
-        vscode.languages.registerDocumentRangeFormattingEditProvider(documentSelector(scheme), this),
-      );
+    if (enabled) {
+      for (const scheme of activeSchemes) {
+        newRegistrations.push(
+          vscode.languages.registerOnTypeFormattingEditProvider(documentSelector(scheme), this, otc.at(0) || "\n", ...otc.slice(1)),
+          vscode.languages.registerDocumentFormattingEditProvider(documentSelector(scheme), this),
+          vscode.languages.registerDocumentRangeFormattingEditProvider(documentSelector(scheme), this),
+        );
+      }
     }
 
     context.subscriptions.push(...newRegistrations);
@@ -143,7 +147,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     return {
       // Note that the secondary values are soft defaults and only fallbacks to avoid
       // undefined values. Actual defaults are set in package.json.
-      enabled: config.get<boolean>("format.enable", false),
+      enabled: enabled,
       autoImports: autoImportMap,
       reloadableRegistrations: newRegistrations,
       alwaysImport: config.get<string[]>("alwaysImport", []),

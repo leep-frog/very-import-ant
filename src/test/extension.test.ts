@@ -163,20 +163,57 @@ interface TestCase extends SimpleTestCaseProps {
 
 
 const testCases: TestCase[] = [
+  // enable setting tests
   {
     name: "Fails if disabled",
     settings: defaultSettings({ enabled: false }),
-    fileContents: [],
+    fileContents: [
+      "def func():",
+      "    _ = pd",
+    ],
     userInteractions: [
       formatDoc(),
     ],
-    expectedText: [""],
-    errorMessage: {
-      expectedMessages: [
-        'The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings',
-      ],
-    }
+    expectedText: [
+      "def func():",
+      "    _ = pd",
+    ],
   },
+  {
+    name: "Works if enabled",
+    settings: defaultSettings({ enabled: true }),
+    fileContents: [
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(3, 0)]
+  },
+  {
+    name: "Doesn't work again if disabled again",
+    settings: defaultSettings({ enabled: false }),
+    fileContents: [
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "def func():",
+      "    _ = pd",
+    ],
+  },
+  // No-op tests
   {
     name: "Handles empty file",
     settings: defaultSettings(),
