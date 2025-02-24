@@ -1218,7 +1218,6 @@ const testCases: TestCase[] = [
   },
   {
     name: "doesn't add alwaysImport in __init__.py file",
-    runSolo: true,
     settings: defaultSettings({
       alwaysImport: [
         'from forever import ever',
@@ -1787,7 +1786,6 @@ const testCases: TestCase[] = [
     settings: defaultSettings({
       removeUnusedImports: true,
     }),
-    runSolo: true,
     initFile: true,
     fileContents: [
       `import nunya`,
