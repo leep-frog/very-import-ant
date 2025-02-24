@@ -254,9 +254,18 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
         return [[], false];
       }
 
+      // Only get the cells up to and including the relevant cell (so if we use a variable in a cell before
+      // it's imported, we still force that to be added).
+      const upToCells: string[] = [];
+      for (const cell of notebook.getCells().filter(cell => cell.kind === vscode.NotebookCellKind.Code)) {
+        upToCells.push(cell.document.getText());
+        if (cell.document.uri.toString() === document.uri.toString()) {
+          break;
+        }
+      }
+
       // Run ruff on the merged text from all code cells
-      const allCellText = notebook.getCells().filter(cell => cell.kind === vscode.NotebookCellKind.Code).map(cell => cell.document.getText()).join("\n\n");
-      const [undefinedFileImports, ok] = this.findUndefinedVariables(allCellText);
+      const [undefinedFileImports, ok] = this.findUndefinedVariables(upToCells.join("\n"));
       if (!ok) {
         return [[], false];
       }

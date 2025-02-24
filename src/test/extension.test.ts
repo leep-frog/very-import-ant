@@ -1628,9 +1628,7 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import numpy as np",
-      // TODO: Would expect this line to be added still (since after), but it isn't
-      // TODO: only consider earlier cells to fix this!!!
-      // "import pandas as pd",
+      "import pandas as pd",
       "",
       "",
       "def func():",
@@ -1638,7 +1636,7 @@ const testCases: TestCase[] = [
       "    _ = pd",
       "",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(4, 0)],
   },
   {
     name: "Disregards markdown cells",
