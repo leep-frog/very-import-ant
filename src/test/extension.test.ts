@@ -152,6 +152,7 @@ interface NotebookCell {
 interface TestCase extends SimpleTestCaseProps {
   name: string;
   settings: any;
+  initFile?: boolean;
   fileContents?: string[];
   runSolo?: boolean;
   notebookContents?: NotebookCell[];
@@ -1216,6 +1217,29 @@ const testCases: TestCase[] = [
     expectedSelections: [sel(3, 0)],
   },
   {
+    name: "doesn't add alwaysImport in __init__.py file",
+    runSolo: true,
+    settings: defaultSettings({
+      alwaysImport: [
+        'from forever import ever',
+      ],
+    }),
+    initFile: true,
+    fileContents: [
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "forever" }),
+    ],
+    expectedText: [
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+  },
+  {
     name: "adds single alwaysImport to combined import",
     settings: defaultSettings({
       alwaysImport: [
@@ -1759,6 +1783,32 @@ const testCases: TestCase[] = [
     ],
   },
   {
+    name: "doesn't remove unused import in __init__.py file",
+    settings: defaultSettings({
+      removeUnusedImports: true,
+    }),
+    runSolo: true,
+    initFile: true,
+    fileContents: [
+      `import nunya`,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      `import nunya`,
+      ``,
+      ``,
+      `def one():`,
+      `    return 1`,
+      ``,
+    ],
+  },
+  {
     name: "doesn't remove unused alwaysImport",
     settings: defaultSettings({
       removeUnusedImports: true,
@@ -2169,8 +2219,9 @@ suite('Extension Test Suite', () => {
           ...(tc.userInteractions || []),
         ];
       } else if (tc.fileContents) {
-        writeFileSync(startingFile("empty.py"), tc.fileContents.join("\n"));
-        tc.file = startingFile("empty.py");
+        const filename = !!tc.initFile ? "__init__.py" : "empty.py";
+        writeFileSync(startingFile(filename), tc.fileContents.join("\n"));
+        tc.file = startingFile(filename);
       } else {
         throw Error("Either tc.notebookContents or tc.fileContents must be defined");
       }

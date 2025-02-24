@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { Diagnostic, Workspace } from '@astral-sh/ruff-wasm-nodejs';
+import path from 'path';
 import { merge } from './range-merge';
 
 enum RuffCode {
@@ -317,15 +318,19 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     // just add a separate setting per scheme (notebook vs python).
     // There is an open VS Code issue to have this natively: https://github.com/microsoft/vscode/issues/195011
     // so perhaps we can just leave as is until that is implemented.
-    if (document.uri.scheme === NOTEBOOK_SCHEME) {
+    if (document.uri.scheme === NOTEBOOK_SCHEME || this.isInitFile(document)) {
       return [];
     }
     return this.settings.alwaysImport;
   }
 
+  private isInitFile(document: vscode.TextDocument): boolean {
+    return path.basename(document.fileName) === "__init__.py";
+  }
+
   private removeUnusedImportsConfigs(document: vscode.TextDocument, fullFormat: boolean): RuffConfig[] {
-    // Same reasoning as getAlwaysImport above
-    if (!fullFormat || document.uri.scheme === NOTEBOOK_SCHEME || !this.settings.removeUnusedImports) {
+    // Same reasoning as getAlwaysImport above for some of these conditions.
+    if (!fullFormat || document.uri.scheme === NOTEBOOK_SCHEME || !this.settings.removeUnusedImports || this.isInitFile(document)) {
       return [];
     }
     return [{

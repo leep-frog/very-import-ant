@@ -8,3 +8,4 @@ bundled-out/
 # These files are changed in each test
 src/test/test-workspace/.vscode/settings.json
 src/test/test-workspace/empty.py
+src/test/test-workspace/simple.ipynb
