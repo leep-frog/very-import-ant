@@ -2,7 +2,7 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "",
-  "version": "2.8.3",
+  "version": "2.8.4",
   "icon": "logo.png",
   "publisher": "groogle",
   "license": "MIT",
@@ -30,6 +30,11 @@
         "very-import-ant.format.enable": {
           "default": true,
           "description": "Whether or not the formatter is enabled",
+          "type": "boolean"
+        },
+        "very-import-ant.output.enable": {
+          "default": false,
+          "description": "Whether or not to send info to the extension's output channel",
           "type": "boolean"
         },
         "very-import-ant.onTypeTriggerCharacters": {

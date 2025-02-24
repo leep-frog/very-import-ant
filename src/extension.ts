@@ -34,13 +34,18 @@ class TruncatedOutputChannel {
 
   private outputChannel: vscode.OutputChannel;
   private logs: string[];
+  enabled: boolean;
 
   constructor(outputChannel: vscode.OutputChannel) {
     this.outputChannel = outputChannel;
     this.logs = [];
+    this.enabled = true;
   }
 
-  log(message: string, reset?: boolean) {
+  log(message: string, reset?: boolean, force?: boolean) {
+    if (!this.enabled && !force) {
+      return;
+    }
 
     if (reset) {
       this.outputChannel.clear();
@@ -93,14 +98,35 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   outputChannel: TruncatedOutputChannel;
 
   constructor(context: vscode.ExtensionContext) {
-    this.settings = this.reloadSettings(context);
     this.outputChannel = new TruncatedOutputChannel(vscode.window.createOutputChannel("very-import-ant"));
-    this.outputChannel.log(`Initial settings: ${JSON.stringify(this.settings)}`);
+    this.settings = this.reloadSettings(context);
   }
 
   reload(context: vscode.ExtensionContext) {
     this.settings = this.reloadSettings(context);
-    this.outputChannel.log(`Reloaded settings: ${JSON.stringify(this.settings)}`);
+  }
+
+  settingsJSON(verboseSettings: any): string {
+    const replacer = (key: string, value: any): any => {
+      // Ignore keys
+      if (["reloadableRegistrations"].includes(key)) {
+        return;
+      }
+
+      // Convert map to record so it's actually serialized properly
+      if (value instanceof Map) {
+        let record: Record<string, any> = {};
+        for (let [mapKey, mapValue] of value) {
+          record[mapKey] = mapValue;
+        }
+        return record;
+      }
+
+      // Otherwise, return regular value
+      return value;
+    };
+
+    return JSON.stringify(verboseSettings, replacer, 2);
   }
 
   private reloadSettings(context: vscode.ExtensionContext): VeryImportantSettings {
@@ -144,16 +170,25 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     context.subscriptions.push(...newRegistrations);
 
-    return {
+    // Note that the order of the fields is how they will be displayed in the output channel.
+    const verboseSettings = {
       // Note that the secondary values are soft defaults and only fallbacks to avoid
       // undefined values. Actual defaults are set in package.json.
       enabled: enabled,
-      autoImports: autoImportMap,
-      reloadableRegistrations: newRegistrations,
-      alwaysImport: config.get<string[]>("alwaysImport", []),
+      // This is only added here for JSON output in output channel; it is not
+      // included in the settings object returned
+      outputEnabled: config.get<boolean>("output.enable", false),
       removeUnusedImports: config.get<boolean>("removeUnusedImports", false),
       organizeImports: config.get<boolean>("organizeImports", false),
+      alwaysImport: config.get<string[]>("alwaysImport", []),
+      autoImports: autoImportMap,
+      reloadableRegistrations: newRegistrations,
     };
+
+    this.outputChannel.enabled = verboseSettings.outputEnabled;
+    this.outputChannel.log(`Very-Import-Any Settings:\n${this.settingsJSON(verboseSettings)}`, true, true);
+
+    return verboseSettings;
   }
 
   provideDocumentFormattingEdits(document: vscode.TextDocument, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
