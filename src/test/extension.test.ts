@@ -764,6 +764,36 @@ const testCases: TestCase[] = [
     ],
   },
   {
+    name: "Doesn't organize imports for __init__.py file",
+    settings: defaultSettings({
+      organizeImports: true,
+    }),
+    initFile: true,
+    fileContents: [
+      "import pandas as pd",
+      "from numbers import two",
+      "import numpy as np",
+      "",
+      "from numbers import three, one",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "from numbers import two",
+      "import numpy as np",
+      "",
+      "from numbers import three, one",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+  },
+  {
     name: "Organizes import when adding an import",
     settings: defaultSettings(),
     fileContents: [
@@ -1953,7 +1983,6 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       `import nunya`,
-      ``,
       ``,
       `def one():`,
       `    return 1`,

@@ -239,7 +239,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     // but we should look to thoroughly test this logic.
 
     const ruffConfigs: RuffConfig[] = [
-      this.addImportsConfig(importsToAdd, fullFormat),
+      this.addImportsConfig(document, importsToAdd, fullFormat),
       ...this.removeUnusedImportsConfigs(document, fullFormat),
     ];
 
@@ -387,11 +387,11 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }];
   }
 
-  private addImportsConfig(importsToAdd: string[], fullFormat: boolean): RuffConfig {
+  private addImportsConfig(document: vscode.TextDocument, importsToAdd: string[], fullFormat: boolean): RuffConfig {
     return {
       lint: {
         select: [
-          ...((fullFormat && this.settings.organizeImports) ? [RuffCode.UNSORTED_IMPORTS] : []),
+          ...((fullFormat && this.settings.organizeImports && !this.isInitFile(document)) ? [RuffCode.UNSORTED_IMPORTS] : []),
           RuffCode.MISSING_REQUIRED_IMPORT,
         ],
         isort: {
