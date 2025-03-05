@@ -2078,7 +2078,6 @@ const testCases: TestCase[] = [
   },
   {
     name: "handles edit for notebook with single line",
-    runSolo: true,
     settings: defaultSettings({
       autoImports: [
         { variable: "pd", import: "import pandas as pd" },
@@ -2099,7 +2098,6 @@ const testCases: TestCase[] = [
   },
   {
     name: "fixes spacing in imports",
-    runSolo: true,
     settings: defaultSettings({
       autoImports: [
         { variable: "pd", import: "import pandas as pd" },
