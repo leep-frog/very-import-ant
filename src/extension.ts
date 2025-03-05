@@ -214,19 +214,23 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   formatDocument(document: vscode.TextDocument, fullFormat: boolean): vscode.ProviderResult<vscode.TextEdit[]> {
-    if (!this.settings.enabled) {
-      vscode.window.showErrorMessage("The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings");
-      return;
+    try {
+      if (!this.settings.enabled) {
+        vscode.window.showErrorMessage("The Very Import-ant formatter is not enabled! Set `very-import-ant.format.enable` to true in your VS Code settings");
+        return;
+      }
+
+      const text = document.getText();
+
+      const [importsToAdd, ok] = this.determineImports(document, text);
+      if (!ok) {
+        return;
+      }
+
+      return this.fixDocument(document, text, importsToAdd, fullFormat);
+    } catch (e) {
+      vscode.window.showErrorMessage(`Unexpected formatting error: ${e}`);
     }
-
-    const text = document.getText();
-
-    const [importsToAdd, ok] = this.determineImports(document, text);
-    if (!ok) {
-      return;
-    }
-
-    return this.fixDocument(document, text, importsToAdd, fullFormat);
   }
 
   private fixDocument(document: vscode.TextDocument, text: string, importsToAdd: string[], fullFormat: boolean): vscode.ProviderResult<vscode.TextEdit[]> {
@@ -457,9 +461,6 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   private applyEdit(text: string, edit: vscode.TextEdit): string {
     const lines = text.split("\n");
 
-    const preamble = lines.slice(0, edit.range.start.line);
-    preamble.push(lines[edit.range.start.line].slice(0, edit.range.start.character));
-
     const editLines: string[] = [];
 
     // Add preamble lines
@@ -472,7 +473,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     editLines.push(
       // Add preamble characters
-      lines[edit.range.start.line + 1].slice(0, edit.range.start.character),
+      lines[edit.range.start.line].slice(0, edit.range.start.character),
 
       // Add new text
       edit.newText,

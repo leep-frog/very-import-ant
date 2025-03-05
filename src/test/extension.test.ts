@@ -2076,6 +2076,55 @@ const testCases: TestCase[] = [
       ``,
     ],
   },
+  {
+    name: "handles edit for notebook with single line",
+    runSolo: true,
+    settings: defaultSettings({
+      autoImports: [
+        { variable: "pd", import: "import pandas as pd" },
+      ],
+    }),
+    fileContents: [
+      `_ = pd`,
+    ],
+    userInteractions: [
+      formatDoc({ containsText: "pandas" }),
+    ],
+    expectedText: [
+      `import pandas as pd`,
+      ``,
+      ``,
+      `_ = pd`,
+    ],
+  },
+  {
+    name: "fixes spacing in imports",
+    runSolo: true,
+    settings: defaultSettings({
+      autoImports: [
+        { variable: "pd", import: "import pandas as pd" },
+      ],
+    }),
+    fileContents: [
+      `import numpy  as np`,
+      `import pandas as  pd`,
+      ``,
+      ``,
+      `_ = pd`,
+      `_ = np`,
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      `import numpy as np`,
+      `import pandas as pd`,
+      ``,
+      ``,
+      `_ = pd`,
+      `_ = np`,
+    ],
+  },
   // ignoreScheme tests
   {
     name: "Doesn't format python file if scheme is ignored",
