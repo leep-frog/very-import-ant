@@ -252,6 +252,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       prevText = text;
 
       for (const ruffConfig of ruffConfigs) {
+        this.outputChannel.log(`Running ruff with config: ${JSON.stringify(ruffConfig)}`);
         const [edittedText, successs] = this.applyRuffConfig(text, allEdits, ruffConfig);
         if (!successs) {
           return;
@@ -282,6 +283,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   private determineImports(document: vscode.TextDocument, text: string): [string[], boolean] {
     // Find all undefined variables
     let [undefinedImports, ok] = this.findUndefinedVariables(text);
+    this.outputChannel.log(`Found undefined variables: ${JSON.stringify(undefinedImports, undefined, 2)}`);
     if (!ok) {
       return [[], false];
     }
@@ -308,6 +310,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
       // Run ruff on the merged text from all code cells
       const [undefinedFileImports, ok] = this.findUndefinedVariables(upToCells.join("\n"));
+      this.outputChannel.log(`Found undefined file imports: ${JSON.stringify(undefinedFileImports, undefined, 2)}`);
       if (!ok) {
         return [[], false];
       }
@@ -316,6 +319,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       // that are needed when both the single cell and the entire document have
       // the undefined name reference.
       undefinedImports = new Set<string>([...undefinedImports].filter(imp => undefinedFileImports.has(imp)));
+      this.outputChannel.log(`Combined undefined imports: ${JSON.stringify(undefinedFileImports, undefined, 2)}`);
     }
 
     return [[...new Set([
