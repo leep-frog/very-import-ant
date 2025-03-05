@@ -2095,6 +2095,7 @@ const testCases: TestCase[] = [
       ``,
       `_ = pd`,
     ],
+    expectedSelections: [sel(3, 0)],
   },
   {
     name: "fixes spacing in imports",
