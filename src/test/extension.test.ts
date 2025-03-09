@@ -1,4 +1,4 @@
-import { cmd, combineInteractions, delay, SimpleTestCase, SimpleTestCaseProps, UserInteraction, Waiter } from '@leep-frog/vscode-test-stubber';
+import { CloseQuickPickAction, cmd, combineInteractions, delay, SelectItemQuickPickAction, SimpleTestCase, SimpleTestCaseProps, UserInteraction, Waiter } from '@leep-frog/vscode-test-stubber';
 import { writeFileSync } from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
@@ -2393,8 +2393,979 @@ const testCases: TestCase[] = [
       "    pass",
     ],
   },
-
-
+  {
+    name: "Does not add settings if no input box response for variable",
+    settings: defaultSettings(),
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        undefined,
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+          validationMessage: {
+            message: "Variable cannot be empty",
+            severity: vscode.InputBoxValidationSeverity.Error,
+          },
+        },
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+    }
+  },
+  {
+    name: "Does not add settings if no input box response for import statement",
+    settings: defaultSettings(),
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "boopers",
+        undefined,
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+        },
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for boopers",
+            value: "from  import boopers",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+    }
+  },
+  {
+    name: "Adds new auto import setting",
+    settings: defaultSettings(),
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "boopers",
+        "from super import boopers",
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+        },
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for boopers",
+            value: "from  import boopers",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    informationMessage: {
+      expectedMessages: [
+        'Successfully added import to auto-imports!',
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+      expectedWorkspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "boopers",
+                  import: "from super import boopers",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+    }
+  },
+  {
+    name: "Fails to add new auto import setting if empty variable",
+    settings: defaultSettings(),
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "",
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+          validationMessage: {
+            message: "Variable cannot be empty",
+            severity: vscode.InputBoxValidationSeverity.Error,
+          },
+        },
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+    }
+  },
+  {
+    name: "Fails to add new auto import setting if invalid variable name",
+    settings: defaultSettings(),
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "some-name",
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+          validationMessage: {
+            message: "Variable must be a valid Python identifier",
+            severity: vscode.InputBoxValidationSeverity.Error,
+          },
+        },
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+    }
+  },
+  {
+    name: "Adds new auto import setting to existing list",
+    settings: defaultSettings(),
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "boopers",
+        "from super import boopers",
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+        },
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for boopers",
+            value: "from  import boopers",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    informationMessage: {
+      expectedMessages: [
+        'Successfully added import to auto-imports!',
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+      workspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "else",
+                  import: "from somewhere import else",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+      expectedWorkspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "else",
+                  import: "from somewhere import else",
+                },
+                {
+                  variable: "boopers",
+                  import: "from super import boopers",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+    }
+  },
+  {
+    name: "Overrides existing auto import setting",
+    settings: defaultSettings(),
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "boopers",
+        "from super import boopers",
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+        },
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for boopers",
+            value: "from  import boopers",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    informationMessage: {
+      expectedMessages: [
+        'Successfully added import to auto-imports!',
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+      workspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "else",
+                  import: "from somewhere import else",
+                },
+                {
+                  variable: "boopers",
+                  import: "from lame import boopers",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+      expectedWorkspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "else",
+                  import: "from somewhere import else",
+                },
+                {
+                  variable: "boopers",
+                  import: "from super import boopers",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+    }
+  },
+  {
+    name: "Adds auto import and sorts",
+    settings: defaultSettings(),
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "second",
+        "from numbers import second",
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+        },
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for second",
+            value: "from  import second",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    informationMessage: {
+      expectedMessages: [
+        'Successfully added import to auto-imports!',
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+      workspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "third",
+                  import: "from numbers import third",
+                },
+                {
+                  variable: "first",
+                  import: "from numbers import first",
+                },
+                {
+                  variable: "else",
+                  import: "from somewhere import else",
+                },
+                {
+                  variable: "beta",
+                  import: "from alpha import beta",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+      expectedWorkspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "beta",
+                  import: "from alpha import beta",
+                },
+                {
+                  variable: "first",
+                  import: "from numbers import first",
+                },
+                {
+                  variable: "second",
+                  import: "from numbers import second",
+                },
+                {
+                  variable: "third",
+                  import: "from numbers import third",
+                },
+                {
+                  variable: "else",
+                  import: "from somewhere import else",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+    }
+  },
+  {
+    name: "Adds auto import and sorts",
+    settings: defaultSettings(),
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "second",
+        "from other import second",
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+        },
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for second",
+            value: "from  import second",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    informationMessage: {
+      expectedMessages: [
+        'Successfully added import to auto-imports!',
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+      workspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "beta",
+                  import: "from alpha import beta",
+                },
+                {
+                  variable: "first",
+                  import: "from numbers import first",
+                },
+                {
+                  variable: "second",
+                  import: "from numbers import second",
+                },
+                {
+                  variable: "third",
+                  import: "from numbers import third",
+                },
+                {
+                  variable: "else",
+                  import: "from somewhere import else",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+      expectedWorkspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "beta",
+                  import: "from alpha import beta",
+                },
+                {
+                  variable: "first",
+                  import: "from numbers import first",
+                },
+                {
+                  variable: "third",
+                  import: "from numbers import third",
+                },
+                {
+                  variable: "second",
+                  import: "from other import second",
+                },
+                {
+                  variable: "else",
+                  import: "from somewhere import else",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+    }
+  },
+  {
+    name: "Adds auto import when editor but no undefined variables",
+    settings: defaultSettings(),
+    fileContents: [
+      "from spain import uno",
+      "from france import deux",
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    expectedText: [
+      "from spain import uno",
+      "from france import deux",
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "three",
+        "from england import three",
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+        },
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for three",
+            value: "from  import three",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    informationMessage: {
+      expectedMessages: [
+        'Successfully added import to auto-imports!',
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+      expectedWorkspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "three",
+                  import: "from england import three",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+    }
+  },
+  // Tests for adding auto imports via quick pick
+  {
+    name: "No auto import added when quick pick is closed",
+    settings: defaultSettings(),
+    fileContents: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    expectedText: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+      new CloseQuickPickAction(),
+    ],
+    quickPick: {
+      expectedQuickPicks: [
+        [
+          "deux",
+          "uno",
+          "Other...",
+        ],
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+    },
+  },
+  {
+    name: "No auto import added when no quick pick selection is made",
+    settings: defaultSettings(),
+    fileContents: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    expectedText: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+      new SelectItemQuickPickAction([]),
+    ],
+    quickPick: {
+      expectedQuickPicks: [
+        [
+          "deux",
+          "uno",
+          "Other...",
+        ],
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+    },
+  },
+  {
+    name: "No auto import added and error message added when multiple quick pick selections made",
+    settings: defaultSettings(),
+    fileContents: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    expectedText: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+      new SelectItemQuickPickAction([
+        "uno",
+        "deux",
+      ]),
+    ],
+    quickPick: {
+      expectedQuickPicks: [
+        [
+          "deux",
+          "uno",
+          "Other...",
+        ],
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+    },
+    errorMessage: {
+      expectedMessages: [
+        "Multiple selections made?!?!?",
+      ],
+    },
+  },
+  {
+    name: "No auto import added if escape import statement input after quick pick selection",
+    settings: defaultSettings(),
+    fileContents: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    expectedText: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+      new SelectItemQuickPickAction([
+        "uno",
+      ]),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        undefined,
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for uno",
+            value: "from  import uno",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    quickPick: {
+      expectedQuickPicks: [
+        [
+          "deux",
+          "uno",
+          "Other...",
+        ],
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+    },
+  },
+  {
+    name: "Auto import added if escape import statement input after quick pick selection",
+    settings: defaultSettings(),
+    fileContents: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    expectedText: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+      new SelectItemQuickPickAction([
+        "uno",
+      ]),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "from spain import uno",
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for uno",
+            value: "from  import uno",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    quickPick: {
+      expectedQuickPicks: [
+        [
+          "deux",
+          "uno",
+          "Other...",
+        ],
+      ],
+    },
+    informationMessage: {
+      expectedMessages: [
+        'Successfully added import to auto-imports!',
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+      expectedWorkspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "uno",
+                  import: "from spain import uno",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+    },
+  },
+  {
+    name: "If other text is selected, then prompt for variable",
+    settings: defaultSettings(),
+    fileContents: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    expectedText: [
+      "",
+      "def func():",
+      "    _ = uno",
+      "    _ = deux",
+      "",
+    ],
+    userInteractions: [
+      cmd('very-import-ant.addAutoImport'),
+      new SelectItemQuickPickAction([
+        "Other...",
+      ]),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "three", // variable name
+        "from england import three", // import statement
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Variable",
+            validateInputProvided: true,
+          },
+        },
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for three",
+            value: "from  import three",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    quickPick: {
+      expectedQuickPicks: [
+        [
+          "deux",
+          "uno",
+          "Other...",
+        ],
+      ],
+    },
+    informationMessage: {
+      expectedMessages: [
+        'Successfully added import to auto-imports!',
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+      expectedWorkspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "three",
+                  import: "from england import three",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+    },
+  },
+  {
+    name: "Suggests undefined references across cells",
+    settings: defaultSettings(),
+    notebookContents: [
+      {
+        contents: [
+          "def func():",
+          "    _ = alpha",
+        ],
+        kind: 'code',
+      },
+      {
+        // Markdown cell should be ignored
+        contents: [
+          "# This is markdown",
+          "def func():",
+          "    _ = beta",
+        ],
+        kind: 'markdown',
+      },
+      {
+        contents: [
+          "def func():",
+          "    _ = delta",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "# This is markdown",
+      "def func():",
+      "    _ = beta",
+    ],
+    userInteractions: [
+      cmd('notebook.focusNextEditor'), // Should work even when we are in a markdown cell
+      // expectedText only checks editor, not focused cell, so run this command to ensure we're in the markdown cell
+      cmd('notebook.cell.edit'),
+      cmd('very-import-ant.addAutoImport'),
+      new SelectItemQuickPickAction(["delta"]),
+    ],
+    inputBox: {
+      inputBoxResponses: [
+        "from greece import delta", // import statement
+      ],
+      expectedInputBoxes: [
+        {
+          options: {
+            title: "Import statement",
+            prompt: "Enter the import statement for delta",
+            value: "from  import delta",
+            valueSelection: [5, 5],
+            validateInputProvided: false,
+          },
+        },
+      ],
+    },
+    quickPick: {
+      expectedQuickPicks: [
+        [
+          "alpha",
+          // No beta since it's in a markdown cell
+          "delta",
+          "Other...",
+        ],
+      ],
+    },
+    informationMessage: {
+      expectedMessages: [
+        'Successfully added import to auto-imports!',
+      ],
+    },
+    workspaceConfiguration: {
+      skip: false,
+      expectedWorkspaceConfiguration: {
+        configuration: new Map([
+          [vscode.ConfigurationTarget.Global, new Map([
+            ['very-import-ant', new Map([
+              ['autoImports', [
+                {
+                  variable: "delta",
+                  import: "from greece import delta",
+                },
+              ]],
+            ])],
+          ])],
+        ]),
+      },
+    },
+  },
   /* Useful for commenting out tests. */
 ];
 
@@ -2407,7 +3378,7 @@ class SettingsUpdate extends Waiter {
   constructor(contents: any, tcIdx: number) {
     super(5, () => {
       return vscode.workspace.getConfiguration('no-op').get('key') === this.noOpValue;
-    });
+    }, 1000);
 
     this.contents = contents;
     this.initialized = false;
@@ -2434,9 +3405,11 @@ class SettingsUpdate extends Waiter {
 suite('Extension Test Suite', () => {
   const requireSolo = testCases.some(tc => tc.runSolo);
 
-  testCases.filter((tc, idx) => idx === 0 || !requireSolo || tc.runSolo).forEach((tc, idx) => {
+  const filteredTests = testCases.filter((tc, idx) => idx === 0 || !requireSolo || tc.runSolo);
 
-    test(tc.name, async () => {
+  filteredTests.forEach((tc, idx) => {
+
+    test(`[${idx + 1} / ${filteredTests.length}]: ${tc.name}`, async () => {
 
       console.log(`========= Starting test: ${tc.name}`);
 
@@ -2451,16 +3424,17 @@ suite('Extension Test Suite', () => {
         const filename = !!tc.initFile ? "__init__.py" : "empty.py";
         writeFileSync(startingFile(filename), tc.fileContents.join("\n"));
         tc.file = startingFile(filename);
-      } else {
-        throw Error("Either tc.notebookContents or tc.fileContents must be defined");
       }
-      tc.workspaceConfiguration = {
-        skip: true,
-      };
-      tc.userInteractions = [
-        new SettingsUpdate(tc.settings, idx),
-        ...(tc.userInteractions || []),
-      ];
+
+      if (!tc.workspaceConfiguration) {
+        tc.workspaceConfiguration = {
+          skip: true,
+        };
+        tc.userInteractions = [
+          new SettingsUpdate(tc.settings, idx),
+          ...(tc.userInteractions || []),
+        ];
+      }
 
       // Run test
       await new SimpleTestCase(tc).runTest().catch((e: any) => {

@@ -62,6 +62,8 @@ class TruncatedOutputChannel {
   }
 }
 
+interface AddAutoImportItem extends vscode.QuickPickItem { }
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -75,6 +77,8 @@ export function activate(context: vscode.ExtensionContext) {
         vif.reload(context);
       }
     }),
+
+    vscode.commands.registerCommand("very-import-ant.addAutoImport", async () => vif.addAutoImport()),
   );
 }
 
@@ -284,36 +288,46 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }];
   }
 
+  private getCombinedNotebookCellText(document: vscode.TextDocument, stopAtCurrent: boolean): string | undefined {
+    // Get the NotebookDocument from the active text document
+    const notebook = vscode.workspace.notebookDocuments.find(nb =>
+      nb.getCells().some(cell => cell.document.uri.toString() === document.uri.toString())
+    );
+    if (!notebook) {
+      vscode.window.showErrorMessage(`Failed to get NotebookDocument reference from TextDocument!`);
+      return;
+    }
+
+    // Only get the cells up to and including the relevant cell (so if we use a variable in a cell before
+    // it's imported, we still force that to be added).
+    const upToCells: string[] = [];
+
+    for (const cell of notebook.getCells().filter(cell => cell.kind === vscode.NotebookCellKind.Code)) {
+      upToCells.push(cell.document.getText());
+      if (stopAtCurrent && cell.document.uri.toString() === document.uri.toString()) {
+        break;
+      }
+    }
+
+    return upToCells.join("\n");
+  }
+
   private determineImports(document: vscode.TextDocument, text: string): [string[], boolean] {
     // Find all undefined variables
-    let [undefinedImports, ok] = this.findUndefinedVariables(text);
+    let [undefinedImports, ok] = this.getUndefinedVariableAutoImports(text);
     this.outputChannel.log(`Found undefined variables: ${JSON.stringify(undefinedImports, undefined, 2)}`);
     if (!ok) {
       return [[], false];
     }
 
     if (document.uri.scheme === NOTEBOOK_SCHEME) {
-      // Get the NotebookDocument from the active text document
-      const notebook = vscode.workspace.notebookDocuments.find(nb =>
-        nb.getCells().some(cell => cell.document.uri.toString() === document.uri.toString())
-      );
-      if (!notebook) {
-        vscode.window.showErrorMessage(`Failed to get NotebookDocument reference from TextDocument!`);
+      const notebookCellText = this.getCombinedNotebookCellText(document, true);
+      if (!notebookCellText) {
         return [[], false];
       }
 
-      // Only get the cells up to and including the relevant cell (so if we use a variable in a cell before
-      // it's imported, we still force that to be added).
-      const upToCells: string[] = [];
-      for (const cell of notebook.getCells().filter(cell => cell.kind === vscode.NotebookCellKind.Code)) {
-        upToCells.push(cell.document.getText());
-        if (cell.document.uri.toString() === document.uri.toString()) {
-          break;
-        }
-      }
-
       // Run ruff on the merged text from all code cells
-      const [undefinedFileImports, ok] = this.findUndefinedVariables(upToCells.join("\n"));
+      const [undefinedFileImports, ok] = this.getUndefinedVariableAutoImports(notebookCellText);
       this.outputChannel.log(`Found undefined file imports: ${JSON.stringify(undefinedFileImports, undefined, 2)}`);
       if (!ok) {
         return [[], false];
@@ -333,7 +347,6 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   private findUndefinedVariables(text: string): [Set<string>, boolean] {
-    // Find all undefined variables
     const [diagnostics, ok] = this.runRuffConfig(text, {
       lint: {
         select: [
@@ -345,8 +358,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return [new Set(), false];
     }
 
-    // Map all undefined variables to their imports (if included in settings)
-    const undefinedImports = new Set(diagnostics.filter(diagnostic => diagnostic.code === RuffCode.UNDEFINED_NAME).flatMap((diagnostic) => {
+    return [new Set(diagnostics.filter(diagnostic => diagnostic.code === RuffCode.UNDEFINED_NAME).flatMap((diagnostic) => {
 
       const match = LINT_ERROR_REGEX.exec(diagnostic.message);
 
@@ -356,10 +368,20 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
         return [];
       }
 
-      return this.settings.autoImports.get(variableName) || [];
-    }));
+      return variableName;
+    })), true];
+  }
 
-    return [undefinedImports, true];
+  private getUndefinedVariableAutoImports(text: string): [Set<string>, boolean] {
+    // Find all undefined variables
+    const [undefinedVariables, ok] = this.findUndefinedVariables(text);
+    if (!ok) {
+      return [new Set(), false];
+    }
+
+    // Map all undefined variables to their imports (if included in settings)
+    const undefinedImports = [...undefinedVariables].flatMap((variable) => this.settings.autoImports.get(variable) || []);
+    return [new Set(undefinedImports), true];
   }
 
   private getAlwaysImports(document: vscode.TextDocument): string[] {
@@ -502,6 +524,136 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       vscode.window.showErrorMessage(`Failed to create ruff config: ${e}`);
       return [[], false];
     }
+  }
+
+  async addAutoImportForVariable(variable: string | undefined) {
+
+    // Get the variable (if unset)
+    if (!variable) {
+      variable = await vscode.window.showInputBox({
+        title: "Variable",
+        validateInput: (input) => {
+          if (input.length === 0) {
+            return {
+              message: "Variable cannot be empty",
+              severity: vscode.InputBoxValidationSeverity.Error,
+            };
+          }
+
+          const importPattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+          if (!importPattern.test(input)) {
+            return {
+              message: "Variable must be a valid Python identifier",
+              severity: vscode.InputBoxValidationSeverity.Error,
+            };
+          }
+        },
+      });
+      if (!variable) {
+        return;
+      }
+    }
+
+    // Get the import statement
+    const importStatement = await vscode.window.showInputBox({
+      title: "Import statement",
+      prompt: `Enter the import statement for ${variable}`,
+      value: `from  import ${variable}`,
+      valueSelection: [5, 5],
+    });
+    if (!importStatement) {
+      return;
+    }
+
+    // Update the config
+    const config = vscode.workspace.getConfiguration(`very-import-ant`);
+    const existingImports = config.get<AutoImport[]>("autoImports", []);
+
+    let updated = false;
+    for (const existingImport of existingImports) {
+      if (existingImport.variable === variable) {
+        existingImport.import = importStatement;
+        updated = true;
+        break;
+      }
+    }
+
+    if (!updated) {
+      existingImports.push({ variable, import: importStatement });
+    }
+
+    // Sort by import statement so that imports from the same packages are grouped together
+    const sortedImports = existingImports.sort((a, b) => a.import.localeCompare(b.import));
+
+    config.update("autoImports", sortedImports, vscode.ConfigurationTarget.Global);
+    vscode.window.showInformationMessage(`Successfully added import to auto-imports!`);
+  }
+
+  async guessNewAutoImport(): Promise<boolean> {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+      return false;
+    }
+
+    const docText = editor.document.uri.scheme === NOTEBOOK_SCHEME ? this.getCombinedNotebookCellText(editor.document, false) : editor.document.getText();
+    if (!docText) {
+      return false;
+    }
+    const [undefinedVariables, ok] = this.findUndefinedVariables(docText);
+    if (undefinedVariables.size === 0) {
+      return false;
+    }
+
+    // Have the user select from one of the known undefined imports
+    const variableQuickInput = vscode.window.createQuickPick<AddAutoImportItem>();
+    const items = [...undefinedVariables].sort().map((variable) => {
+      return {
+        label: variable,
+      };
+    });
+
+    const otherText = "Other...";
+    variableQuickInput.items = [
+      ...items,
+      { label: otherText },
+    ];
+
+    const disposables = [
+      variableQuickInput.onDidAccept(async e => {
+        variableQuickInput.dispose();
+
+        if (variableQuickInput.activeItems.length === 0) {
+          return;
+        } else if (variableQuickInput.activeItems.length > 1) {
+          vscode.window.showErrorMessage("Multiple selections made?!?!?");
+          return;
+        }
+
+        // Get the variable the user selected
+        let variable = variableQuickInput.selectedItems.at(0)?.label;
+        if (!variable) {
+          return;
+        }
+
+        // Ask the user for input if not one of the undefined ones
+        this.addAutoImportForVariable(variable === otherText ? undefined : variable);
+      }),
+
+      // Close on variableQuickInput hide
+      variableQuickInput.onDidHide(async e => {
+        variableQuickInput.dispose();
+        disposables.forEach(d => d.dispose);
+      }),
+    ];
+    variableQuickInput.show();
+    return true;
+  }
+
+  async addAutoImport() {
+    if (await this.guessNewAutoImport()) {
+      return;
+    }
+    this.addAutoImportForVariable(undefined);
   }
 }
 

@@ -2,7 +2,7 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "",
-  "version": "2.9.0",
+  "version": "3.0.0",
   "icon": "logo.png",
   "publisher": "groogle",
   "license": "MIT",
@@ -24,7 +24,12 @@
   ],
   "main": "./bundled-out/extension.js",
   "contributes": {
-    "commands": [],
+    "commands": [
+      {
+        "command": "very-import-ant.addAutoImport",
+        "title": "Very Import-ant: Add Auto Import"
+      }
+    ],
     "configuration": {
       "properties": {
         "very-import-ant.format.enable": {
