@@ -225,19 +225,44 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       }
 
       const text = document.getText();
+      const [magicConversions, magiclessText] = this.popMagicCommands(text);
 
-      const [importsToAdd, ok] = this.determineImports(document, text);
+      const [importsToAdd, ok] = this.determineImports(document, magiclessText);
       if (!ok) {
         return;
       }
 
-      return this.fixDocument(document, text, importsToAdd, fullFormat);
+      return this.fixDocument(document, magiclessText, importsToAdd, fullFormat, magicConversions);
     } catch (e) {
       vscode.window.showErrorMessage(`Unexpected formatting error: ${e}`);
     }
   }
 
-  private fixDocument(document: vscode.TextDocument, text: string, importsToAdd: string[], fullFormat: boolean): vscode.ProviderResult<vscode.TextEdit[]> {
+  private popMagicCommands(text: string): [Map<string, string>, string] {
+    const magicConversions = new Map<string, string>();
+
+    const magiclessLines = [];
+    for (const line of text.split("\n")) {
+      if (line.startsWith("%")) {
+        const magiclessLine = line.replace(/^%/, "#");
+        magiclessLines.push(magiclessLine);
+        magicConversions.set(magiclessLine, line);
+      } else {
+        magiclessLines.push(line);
+      }
+    }
+    return [magicConversions, magiclessLines.join("\n")];
+  }
+
+  private pushMagicCommands(magiclessText: string, magicConversions: Map<string, string>): string {
+    const lines = [];
+    for (const line of magiclessText.split("\n")) {
+      lines.push(magicConversions.get(line) ?? line);
+    }
+    return lines.join("\n");
+  }
+
+  private fixDocument(document: vscode.TextDocument, text: string, importsToAdd: string[], fullFormat: boolean, magicConversions: Map<string, string>): vscode.ProviderResult<vscode.TextEdit[]> {
     // Generate the new text
     const allEdits: vscode.TextEdit[][] = [];
 
@@ -261,11 +286,11 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
       for (const ruffConfig of ruffConfigs) {
         this.outputChannel.log(`Running ruff with config: ${JSON.stringify(ruffConfig)}`);
-        const [edittedText, successs] = this.applyRuffConfig(text, allEdits, ruffConfig);
-        if (!successs) {
+        const [editedText, success] = this.applyRuffConfig(text, allEdits, ruffConfig);
+        if (!success) {
           return;
         }
-        text = edittedText;
+        text = editedText;
       }
 
       // Stop if recursion is appearing to get into a cycle.
@@ -276,7 +301,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }
 
     // Simply return single set of edits if only run once
-    if (allEdits.length <= 0) {
+    if (allEdits.length <= 0 && magicConversions.size === 0) {
       return allEdits.at(0);
     }
 
@@ -284,7 +309,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     // objects to reference the original document's positions (not incremental).
     return [{
       range: new vscode.Range(0, 0, document.lineCount, 0),
-      newText: text,
+      newText: this.pushMagicCommands(text, magicConversions),
     }];
   }
 
@@ -303,7 +328,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     const upToCells: string[] = [];
 
     for (const cell of notebook.getCells().filter(cell => cell.kind === vscode.NotebookCellKind.Code)) {
-      upToCells.push(cell.document.getText());
+      const [_, magiclessText] = this.popMagicCommands(cell.document.getText());
+      upToCells.push(magiclessText);
       if (stopAtCurrent && cell.document.uri.toString() === document.uri.toString()) {
         break;
       }
@@ -315,7 +341,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   private determineImports(document: vscode.TextDocument, text: string): [string[], boolean] {
     // Find all undefined variables
     let [undefinedImports, ok] = this.getUndefinedVariableAutoImports(text);
-    this.outputChannel.log(`Found undefined variables: ${JSON.stringify(undefinedImports, undefined, 2)}`);
+    this.outputChannel.log(`Found undefined variables: ${JSON.stringify([...undefinedImports], undefined, 2)}`);
     if (!ok) {
       return [[], false];
     }
@@ -328,7 +354,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
       // Run ruff on the merged text from all code cells
       const [undefinedFileImports, ok] = this.getUndefinedVariableAutoImports(notebookCellText);
-      this.outputChannel.log(`Found undefined file imports: ${JSON.stringify(undefinedFileImports, undefined, 2)}`);
+      this.outputChannel.log(`Found undefined file imports: ${JSON.stringify([...undefinedFileImports], undefined, 2)}`);
       if (!ok) {
         return [[], false];
       }
@@ -337,7 +363,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       // that are needed when both the single cell and the entire document have
       // the undefined name reference.
       undefinedImports = new Set<string>([...undefinedImports].filter(imp => undefinedFileImports.has(imp)));
-      this.outputChannel.log(`Combined undefined imports: ${JSON.stringify(undefinedFileImports, undefined, 2)}`);
+      this.outputChannel.log(`Combined undefined imports: ${JSON.stringify([...undefinedFileImports], undefined, 2)}`);
     }
 
     return [[...new Set([

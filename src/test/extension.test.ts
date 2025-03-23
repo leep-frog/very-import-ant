@@ -3366,6 +3366,94 @@ const testCases: TestCase[] = [
       },
     },
   },
+  // Magic notebook commands
+  {
+    name: "Handles magic commands",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "%magic command",
+          "",
+          "def func():",
+          "    _ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "%magic command",
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "pandas",
+      }),
+    ],
+  },
+  {
+    name: "Handles magic commands in previous cell",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "%magic command",
+          "import pandas as pd",
+          "",
+        ],
+        kind: 'code',
+      },
+      {
+        contents: [
+          "",
+          "def func():",
+          "    _ = pd",
+          "    _ = np",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import numpy as np",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    _ = np",
+    ],
+    expectedSelections: [sel(2, 0)],
+    userInteractions: [
+      cmd('notebook.focusNextEditor'),
+      formatDoc({
+        notebook: true,
+        containsText: "pandas",
+      }),
+    ],
+  },
   /* Useful for commenting out tests. */
 ];
 
