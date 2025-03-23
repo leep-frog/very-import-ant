@@ -3454,6 +3454,58 @@ const testCases: TestCase[] = [
       }),
     ],
   },
+  {
+    name: "Replaces multiple magic commands in previous cell",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "%magic command",
+          "%magic other",
+          "import pandas as pd",
+          "",
+        ],
+        kind: 'code',
+      },
+      {
+        contents: [
+          "%magic other",
+          "",
+          "def func():",
+          "    _ = pd",
+          "    _ = np",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "%magic other",
+      "import numpy as np",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "    _ = np",
+    ],
+    userInteractions: [
+      cmd('notebook.focusNextEditor'),
+      formatDoc({
+        notebook: true,
+        containsText: "pandas",
+      }),
+    ],
+  },
   /* Useful for commenting out tests. */
 ];
 
