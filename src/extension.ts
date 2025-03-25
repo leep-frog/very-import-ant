@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import { Diagnostic, Workspace } from '@astral-sh/ruff-wasm-nodejs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import { merge } from './range-merge';
 
@@ -9,6 +10,11 @@ enum RuffCode {
   UNDEFINED_NAME = 'F821',
   UNSORTED_IMPORTS = 'I001',
   MISSING_REQUIRED_IMPORT = 'I002',
+};
+
+export const STUBBABLE_CONFIG = {
+  // TODO: Stub in test instead of doing this.
+  startupDir: process.env.TEST_MODE ? path.join(__dirname, "..", "src", "test", "fake-ipython-startup") : path.join("~", ".ipython", "profile_default", "startup"),
 };
 
 const NOTEBOOK_SCHEME = "vscode-notebook-cell";
@@ -323,19 +329,35 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return;
     }
 
+    const textParts: string[] = [];
+
+    // Get python notebook startup files
+    const startupDir = STUBBABLE_CONFIG.startupDir;
+    if (existsSync(startupDir)) {
+      const startupFiles = readdirSync(startupDir).sort();
+      for (const startupFile of startupFiles) {
+        if (startupFile.endsWith(".py") || startupFile.endsWith(".ipy")) {
+          const fileContents = readFileSync(path.join(startupDir, startupFile), "utf-8");
+          const [_, fileText] = this.popMagicCommands(fileContents);
+
+          if (this.validPythonCode(fileText)) {
+            textParts.push(fileText);
+          }
+        }
+      }
+    }
+
     // Only get the cells up to and including the relevant cell (so if we use a variable in a cell before
     // it's imported, we still force that to be added).
-    const upToCells: string[] = [];
-
     for (const cell of notebook.getCells().filter(cell => cell.kind === vscode.NotebookCellKind.Code)) {
       const [_, magiclessText] = this.popMagicCommands(cell.document.getText());
-      upToCells.push(magiclessText);
+      textParts.push(magiclessText);
       if (stopAtCurrent && cell.document.uri.toString() === document.uri.toString()) {
         break;
       }
     }
 
-    return upToCells.join("\n");
+    return textParts.join("\n");
   }
 
   private determineImports(document: vscode.TextDocument, text: string): [string[], boolean] {
@@ -370,6 +392,16 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       ...this.getAlwaysImports(document),
       ...undefinedImports,
     ])], true];
+  }
+
+  private validPythonCode(text: string): boolean {
+    const [diagnostics, ok] = this.runRuffConfig(text, {
+      lint: {},
+    });
+    if (diagnostics) {
+      this.outputChannel.log(`Invalid notebook start-up script: ${JSON.stringify(diagnostics)}`);
+    }
+    return ok && (diagnostics.length === 0);
   }
 
   private findUndefinedVariables(text: string): [Set<string>, boolean] {

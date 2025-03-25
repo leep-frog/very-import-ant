@@ -8,6 +8,7 @@ bundled-out/
 # These files are changed in each test
 src/test/test-workspace/.vscode/*
 src/test/test-workspace/*
+src/test/fake-ipython-startup/*
 # Keep the folders though
 !src/test/test-workspace/.vscode/blank.txt
 !src/test/test-workspace/blank.txt

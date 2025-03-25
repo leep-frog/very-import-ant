@@ -1,7 +1,8 @@
 import { CloseQuickPickAction, cmd, combineInteractions, delay, SelectItemQuickPickAction, SimpleTestCase, SimpleTestCaseProps, UserInteraction, Waiter } from '@leep-frog/vscode-test-stubber';
-import { writeFileSync } from 'fs';
+import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
+import { STUBBABLE_CONFIG } from '../extension';
 
 function startingFile(...filename: string[]) {
   return path.resolve(__dirname, "..", "..", "src", "test", "test-workspace", path.join(...filename));
@@ -151,12 +152,18 @@ interface NotebookCell {
   kind: 'code' | 'markdown';
 }
 
+interface StartupFile {
+  name: string;
+  contents: string[];
+}
+
 interface TestCase extends SimpleTestCaseProps {
   name: string;
   settings: any;
   initFile?: boolean;
   fileContents?: string[];
   runSolo?: boolean;
+  startupDir?: StartupFile[];
   notebookContents?: NotebookCell[];
 }
 
@@ -3506,6 +3513,283 @@ const testCases: TestCase[] = [
       }),
     ],
   },
+  // Notebook startup file tests
+  {
+    name: "Considers start up files when adding imports",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import numpy as np",
+      "",
+      "",
+      "_ = np",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
+    startupDir: [
+      {
+        name: "01-startup.py",
+        contents: [
+          "pd = 123",
+        ],
+      },
+    ],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "numpy",
+      }),
+    ],
+  },
+  {
+    name: "Considers multiple start up files when adding imports",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import xarray as xr",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
+    startupDir: [
+      {
+        name: "01-startup.py",
+        contents: [
+          "pd = 123",
+        ],
+      },
+      {
+        name: "02-startup.py",
+        contents: [
+          "np = 'four'",
+        ],
+      },
+    ],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "xarray",
+      }),
+    ],
+  },
+  {
+    name: "Handles magic text in notebook",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "_ = np",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
+    startupDir: [
+      {
+        name: "01-startup.py",
+        contents: [
+          "%abra cadabra",
+          "np = 'four'",
+        ],
+      },
+    ],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "pandas",
+      }),
+    ],
+  },
+  {
+    name: "Allows ipy and ignores other suffix files",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "import xarray as xr",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(4, 0)],
+    startupDir: [
+      {
+        name: "01-startup.txt",
+        contents: [
+          "pd = 'four'",
+        ],
+      },
+      {
+        name: "02-startup.ipy",
+        contents: [
+          "%abra cadabra",
+          "np = 'four'",
+        ],
+      },
+    ],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "pandas",
+      }),
+    ],
+  },
+  {
+    name: "Handles invalid start-up scripts",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import xarray as xr",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
+    startupDir: [
+      {
+        name: "01-startup.py",
+        contents: [
+          "pd = 123",
+        ],
+      },
+      {
+        name: "02-startup.py",
+        contents: [
+          "invalid python:",
+          "    code",
+        ],
+      },
+      {
+        name: "03-startup.py",
+        contents: [
+          "np = 'four'",
+        ],
+      },
+    ],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "xarray",
+      }),
+    ],
+  },
   /* Useful for commenting out tests. */
 ];
 
@@ -3553,6 +3837,19 @@ suite('Extension Test Suite', () => {
 
       console.log(`========= Starting test: ${tc.name}`);
 
+      // Setup fake startup directory
+      rmSync(STUBBABLE_CONFIG.startupDir, {
+        force: true,
+        recursive: true,
+      });
+      if (tc.startupDir !== undefined) {
+        mkdirSync(STUBBABLE_CONFIG.startupDir);
+        for (const startupFile of tc.startupDir) {
+          writeFileSync(path.join(STUBBABLE_CONFIG.startupDir, startupFile.name), startupFile.contents.join("\n"));
+        }
+      }
+
+      // Populate notebook or python file
       if (tc.notebookContents) {
         writeFileSync(startingFile("simple.ipynb"), notebookText(tc.notebookContents));
         tc.userInteractions = [
