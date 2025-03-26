@@ -164,6 +164,8 @@ interface TestCase extends SimpleTestCaseProps {
   runSolo?: boolean;
   startupDir?: StartupFile[];
   notebookContents?: NotebookCell[];
+  userProfileForHome?: boolean;
+  noHome?: boolean;
 }
 
 
@@ -3525,6 +3527,10 @@ const testCases: TestCase[] = [
           variable: "np",
           import: "import numpy as np",
         },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
       ],
     }),
     notebookContents: [
@@ -3560,6 +3566,94 @@ const testCases: TestCase[] = [
       formatDoc({
         notebook: true,
         containsText: "numpy",
+      }),
+    ],
+  },
+  {
+    name: "Works when USERPROFILE environment variable is set",
+    userProfileForHome: true, // Same as previous test except for this line
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import numpy as np",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
+    startupDir: [
+      {
+        name: "01-startup.py",
+        contents: [
+          // Want to verify that it works with both variables and importing
+          "pd = 123",
+          "import xarray as xr"
+        ],
+      },
+    ],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "numpy",
+      }),
+    ],
+  },
+  {
+    name: "Ignores startup files when no HOME or USERPROFILE is set",
+    noHome: true,
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "pandas",
       }),
     ],
   },
@@ -3842,16 +3936,30 @@ suite('Extension Test Suite', () => {
 
       // Setup fake startup directory
       // TODO: Tests when HOME and USERPROFILE are null
-      process.env.HOME = path.join(__dirname, "..", "..", "src", "test", "fake-home");
-      const startupDir = path.join(process.env.HOME, ".ipython", "profile_default", "startup");
-      rmSync(startupDir, {
-        force: true,
-        recursive: true,
-      });
-      if (tc.startupDir !== undefined) {
-        mkdirSync(startupDir, { recursive: true });
-        for (const startupFile of tc.startupDir) {
-          writeFileSync(path.join(startupDir, startupFile.name), startupFile.contents.join("\n"));
+
+      if (tc.noHome) {
+        delete process.env.HOME;
+        delete process.env.USERPROFILE;
+      } else {
+        const fakeHome = path.join(__dirname, "..", "..", "src", "test", "fake-home");
+        if (tc.userProfileForHome) {
+          process.env.USERPROFILE = fakeHome;
+          delete process.env.HOME;
+        } else {
+          delete process.env.USERPROFILE;
+          process.env.HOME = fakeHome;
+        }
+
+        const startupDir = path.join(fakeHome, ".ipython", "profile_default", "startup");
+        rmSync(startupDir, {
+          force: true,
+          recursive: true,
+        });
+        if (tc.startupDir !== undefined) {
+          mkdirSync(startupDir, { recursive: true });
+          for (const startupFile of tc.startupDir) {
+            writeFileSync(path.join(startupDir, startupFile.name), startupFile.contents.join("\n"));
+          }
         }
       }
 
