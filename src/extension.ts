@@ -12,10 +12,19 @@ enum RuffCode {
   MISSING_REQUIRED_IMPORT = 'I002',
 };
 
-export const STUBBABLE_CONFIG = {
-  // TODO: Stub in test instead of doing this.
-  startupDir: process.env.TEST_MODE ? path.join(__dirname, "..", "src", "test", "fake-ipython-startup") : path.join("~", ".ipython", "profile_default", "startup"),
-};
+function getStartupDir(): string | undefined {
+
+  // TODO: Do this via below process variables
+  if (process.env.TEST_MODE) {
+    return path.join(__dirname, "..", "src", "test", "fake-ipython-startup");
+  }
+
+  const homeDir = process.env.HOME || process.env.USERPROFILE;
+  if (homeDir) {
+    return path.join(homeDir, ".ipython", "profile_default", "startup");
+  }
+  return;
+}
 
 const NOTEBOOK_SCHEME = "vscode-notebook-cell";
 
@@ -332,9 +341,9 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     const textParts: string[] = [];
 
     // Get python notebook startup files
-    const startupDir = STUBBABLE_CONFIG.startupDir;
+    const startupDir = getStartupDir();
     this.outputChannel.log(`Checking startup directory: ${startupDir}`);
-    if (existsSync(startupDir)) {
+    if (startupDir && existsSync(startupDir)) {
       const startupFiles = readdirSync(startupDir).sort();
       this.outputChannel.log(`Found startup files: ${JSON.stringify(startupFiles)}`);
       for (const startupFile of startupFiles) {
@@ -399,9 +408,14 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
   private validPythonCode(text: string): boolean {
     const [diagnostics, ok] = this.runRuffConfig(text, {
-      lint: {},
+      lint: {
+        select: [
+          // Only care about syntax errors
+          "E9",
+        ],
+      },
     });
-    if (diagnostics) {
+    if (diagnostics.length > 0) {
       this.outputChannel.log(`Invalid notebook start-up script: ${JSON.stringify(diagnostics)}`);
     }
     return ok && (diagnostics.length === 0);

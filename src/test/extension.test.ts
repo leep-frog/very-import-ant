@@ -2,7 +2,6 @@ import { CloseQuickPickAction, cmd, combineInteractions, delay, SelectItemQuickP
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
-import { STUBBABLE_CONFIG } from '../extension';
 
 function startingFile(...filename: string[]) {
   return path.resolve(__dirname, "..", "..", "src", "test", "test-workspace", path.join(...filename));
@@ -3532,6 +3531,7 @@ const testCases: TestCase[] = [
       {
         contents: [
           "_ = np",
+          "_ = xr",
           "_ = pd",
         ],
         kind: 'code',
@@ -3542,6 +3542,7 @@ const testCases: TestCase[] = [
       "",
       "",
       "_ = np",
+      "_ = xr",
       "_ = pd",
     ],
     expectedSelections: [sel(3, 0)],
@@ -3549,7 +3550,9 @@ const testCases: TestCase[] = [
       {
         name: "01-startup.py",
         contents: [
+          // Want to verify that it works with both variables and importing
           "pd = 123",
+          "import xarray as xr"
         ],
       },
     ],
@@ -3779,7 +3782,7 @@ const testCases: TestCase[] = [
       {
         name: "03-startup.py",
         contents: [
-          "np = 'four'",
+          "import numpy as np",
         ],
       },
     ],
@@ -3837,15 +3840,17 @@ suite('Extension Test Suite', () => {
 
       console.log(`========= Starting test: ${tc.name}`);
 
+      const startupDir = path.join(__dirname, "..", "..", "src", "test", "fake-ipython-startup");
+
       // Setup fake startup directory
-      rmSync(STUBBABLE_CONFIG.startupDir, {
+      rmSync(startupDir, {
         force: true,
         recursive: true,
       });
       if (tc.startupDir !== undefined) {
-        mkdirSync(STUBBABLE_CONFIG.startupDir);
+        mkdirSync(startupDir);
         for (const startupFile of tc.startupDir) {
-          writeFileSync(path.join(STUBBABLE_CONFIG.startupDir, startupFile.name), startupFile.contents.join("\n"));
+          writeFileSync(path.join(startupDir, startupFile.name), startupFile.contents.join("\n"));
         }
       }
 
