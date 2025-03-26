@@ -2051,7 +2051,7 @@ const testCases: TestCase[] = [
       ``,
     ],
     userInteractions: [
-      formatDoc({ doesNotContainText: "pandas" }),
+      formatDoc({ containsText: "pandas" }),
     ],
     expectedText: [
       `import another`,
