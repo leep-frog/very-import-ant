@@ -1076,7 +1076,7 @@ const testCases: TestCase[] = [
     ],
     selections: [sel(7, 10)],
     userInteractions: [
-      formatOnType("\n", "pandas"),
+      formatOnType("\n", "numpy"),
     ],
     expectedText: [
       `from alphabet import tail as xyz`,
@@ -1414,21 +1414,26 @@ const testCases: TestCase[] = [
       alwaysImport: [
         'from forever import ever',
       ],
+      autoImports: [
+        { variable: "o", import: "import other as o" },
+      ],
     }),
     initFile: true,
     fileContents: [
       `def one():`,
-      `    return 1`,
+      `    return o`,
       ``,
     ],
     userInteractions: [
-      formatDoc({ containsText: "forever" }),
+      formatDoc({ containsText: "import other" }),
     ],
     expectedText: [
+      `import other as o`,
       `def one():`,
-      `    return 1`,
+      `    return o`,
       ``,
     ],
+    expectedSelections: [sel(1, 0)],
   },
   {
     name: "adds single alwaysImport to combined import",
@@ -2046,7 +2051,7 @@ const testCases: TestCase[] = [
       ``,
     ],
     userInteractions: [
-      formatDoc({ doesNotContainText: "other" }),
+      formatDoc({ doesNotContainText: "pandas" }),
     ],
     expectedText: [
       `import another`,
@@ -2254,7 +2259,7 @@ const testCases: TestCase[] = [
       "    pass",
     ],
     userInteractions: [
-      formatDoc({ containsText: "pandas" }),
+      formatDoc({ containsText: "import Any" }),
     ],
     expectedText: [
       "from typing import Any",
@@ -2278,7 +2283,7 @@ const testCases: TestCase[] = [
       "    pass",
     ],
     userInteractions: [
-      formatDoc({ containsText: "pandas" }),
+      formatDoc({ containsText: "import Any" }),
     ],
     expectedText: [
       "from typing import Any",
@@ -2304,7 +2309,7 @@ const testCases: TestCase[] = [
       "    pass",
     ],
     userInteractions: [
-      formatDoc({ containsText: "pandas" }),
+      formatDoc({ containsText: "Any, Optional" }),
     ],
     expectedText: [
       "from typing import Any, Optional",
@@ -2318,13 +2323,16 @@ const testCases: TestCase[] = [
     name: "Removal of import in import block with trailing comma gets condensed to one line",
     settings: defaultSettings(),
     fileContents: [
-      "from typing import Any, Optional",
+      "from typing import (",
+      "    Any,",
+      "    Optional,",
+      ")",
       "",
       "def func(d: Optional[str]) -> Any:",
       "    pass",
     ],
     userInteractions: [
-      formatDoc({ containsText: "pandas" }),
+      formatDoc({ containsText: "Any, Optional" }),
     ],
     expectedText: [
       "from typing import Any, Optional",
@@ -2344,7 +2352,7 @@ const testCases: TestCase[] = [
       "    pass",
     ],
     userInteractions: [
-      formatDoc({ containsText: "pandas" }),
+      formatDoc({ containsText: "import (" }),
     ],
     expectedText: [
       `from typing import (`,
@@ -2382,7 +2390,7 @@ const testCases: TestCase[] = [
       "    pass",
     ],
     userInteractions: [
-      formatDoc({ containsText: "pandas" }),
+      formatDoc({ containsText: "Other," }),
     ],
     expectedText: [
       `from typing import (`,
@@ -3458,7 +3466,7 @@ const testCases: TestCase[] = [
       cmd('notebook.focusNextEditor'),
       formatDoc({
         notebook: true,
-        containsText: "pandas",
+        containsText: "numpy",
       }),
     ],
   },
@@ -3510,7 +3518,7 @@ const testCases: TestCase[] = [
       cmd('notebook.focusNextEditor'),
       formatDoc({
         notebook: true,
-        containsText: "pandas",
+        containsText: "numpy",
       }),
     ],
   },
