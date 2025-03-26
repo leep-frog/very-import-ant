@@ -13,17 +13,10 @@ enum RuffCode {
 };
 
 function getStartupDir(): string | undefined {
-
-  // TODO: Do this via below process variables
-  if (process.env.TEST_MODE) {
-    return path.join(__dirname, "..", "src", "test", "fake-ipython-startup");
-  }
-
   const homeDir = process.env.HOME || process.env.USERPROFILE;
   if (homeDir) {
     return path.join(homeDir, ".ipython", "profile_default", "startup");
   }
-  return;
 }
 
 const NOTEBOOK_SCHEME = "vscode-notebook-cell";

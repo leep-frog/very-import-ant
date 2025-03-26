@@ -889,7 +889,7 @@ const testCases: TestCase[] = [
     ],
     userInteractions: [
       cmd("workbench.action.files.save"),
-      _waitForDocChange("pandas"),
+      _waitForDocChange("numpy"),
       // Need to wait a little bit longer to ensure the save action completes
       // after the formatting step runs (since the above only waits for the formatting to occur).
       delay(25),
@@ -939,7 +939,7 @@ const testCases: TestCase[] = [
     ],
     userInteractions: [
       formatDoc({
-        containsText: "pandas",
+        containsText: "numpy",
       }),
     ],
     expectedText: [
@@ -3840,15 +3840,16 @@ suite('Extension Test Suite', () => {
 
       console.log(`========= Starting test: ${tc.name}`);
 
-      const startupDir = path.join(__dirname, "..", "..", "src", "test", "fake-ipython-startup");
-
       // Setup fake startup directory
+      // TODO: Tests when HOME and USERPROFILE are null
+      process.env.HOME = path.join(__dirname, "..", "..", "src", "test", "fake-home");
+      const startupDir = path.join(process.env.HOME, ".ipython", "profile_default", "startup");
       rmSync(startupDir, {
         force: true,
         recursive: true,
       });
       if (tc.startupDir !== undefined) {
-        mkdirSync(startupDir);
+        mkdirSync(startupDir, { recursive: true });
         for (const startupFile of tc.startupDir) {
           writeFileSync(path.join(startupDir, startupFile.name), startupFile.contents.join("\n"));
         }
