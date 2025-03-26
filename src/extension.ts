@@ -333,10 +333,13 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     // Get python notebook startup files
     const startupDir = STUBBABLE_CONFIG.startupDir;
+    this.outputChannel.log(`Checking startup directory: ${startupDir}`);
     if (existsSync(startupDir)) {
       const startupFiles = readdirSync(startupDir).sort();
+      this.outputChannel.log(`Found startup files: ${JSON.stringify(startupFiles)}`);
       for (const startupFile of startupFiles) {
         if (startupFile.endsWith(".py") || startupFile.endsWith(".ipy")) {
+          this.outputChannel.log(`Including startup file: ${startupFile}`);
           const fileContents = readFileSync(path.join(startupDir, startupFile), "utf-8");
           const [_, fileText] = this.popMagicCommands(fileContents);
 
