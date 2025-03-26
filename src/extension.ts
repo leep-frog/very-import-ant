@@ -366,7 +366,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   private determineImports(document: vscode.TextDocument, text: string): [string[], boolean] {
     // Find all undefined variables
     let [undefinedImports, ok] = this.getUndefinedVariableAutoImports(text);
-    this.outputChannel.log(`Found undefined variables: ${JSON.stringify([...undefinedImports], undefined, 2)}`);
+    this.outputChannel.log(`Found undefined variables (${undefinedImports.size}): ${JSON.stringify([...undefinedImports], undefined, 2)}`);
     if (!ok) {
       return [[], false];
     }
@@ -388,7 +388,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       // that are needed when both the single cell and the entire document have
       // the undefined name reference.
       undefinedImports = new Set<string>([...undefinedImports].filter(imp => undefinedFileImports.has(imp)));
-      this.outputChannel.log(`Combined undefined imports: ${JSON.stringify([...undefinedFileImports], undefined, 2)}`);
+      this.outputChannel.log(`Combined undefined imports: ${JSON.stringify([...undefinedImports], undefined, 2)}`);
     }
 
     return [[...new Set([
