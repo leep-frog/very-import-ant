@@ -22,6 +22,39 @@ function openTestWorkspaceFile(...filename: string[]): UserInteraction {
   return cmd("vscode.open", getUri(...filename));
 }
 
+class SettingsUpdate extends Waiter {
+
+  private contents: any;
+  private noOpValue: string;
+  private initialized: boolean;
+
+  constructor(contents: any, tcIdx: number) {
+    super(5, () => {
+      return vscode.workspace.getConfiguration('no-op').get('key') === this.noOpValue;
+    }, 1000);
+
+    this.contents = contents;
+    this.initialized = false;
+    this.noOpValue = `test-number-${tcIdx}`;
+  }
+
+  async do(): Promise<any> {
+    if (!this.initialized) {
+      this.initialized = true;
+      const settingsFile = startingFile(".vscode", "settings.json");
+
+      writeFileSync(settingsFile, JSON.stringify({
+        ...this.contents,
+        "no-op": {
+          "key": this.noOpValue,
+        },
+      }, undefined, 2));
+    }
+
+    return super.do();
+  }
+}
+
 function notebookText(cells: NotebookCell[]): string {
   return JSON.stringify({
     cells: cells.map(cell => ({
@@ -107,6 +140,7 @@ interface VeryImportConfig {
   removeUnusedImports?: boolean;
   organizeImports?: boolean;
   ignoreSchemes?: string[];
+  jupyterStartupBlock?: string | string[];
 }
 
 function defaultSettings(config?: VeryImportConfig) {
@@ -122,6 +156,13 @@ function defaultSettings(config?: VeryImportConfig) {
     opts = {
       ...opts,
       "very-import-ant.autoImports": config.autoImports,
+    };
+  }
+
+  if (config?.jupyterStartupBlock) {
+    opts = {
+      ...opts,
+      "jupyter.runStartupCommands": config.jupyterStartupBlock,
     };
   }
 
@@ -3894,42 +3935,445 @@ const testCases: TestCase[] = [
         containsText: "xarray",
       }),
     ],
+    errorMessage: {
+      expectedMessages: [
+        "Startup file 02-startup.py has invalid python code. See extension output for more info",
+      ],
+    },
+  },
+  // jupyter startup commands
+  {
+    name: "Includes jupyter.startupRunCommands when it's a string",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+      jupyterStartupBlock: "import xarray as xr",
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import numpy as np",
+      "import pandas as pd",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(4, 0)],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "numpy",
+      }),
+    ],
+  },
+  {
+    name: "Includes jupyter.startupRunCommands when it's a list",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+      jupyterStartupBlock: [
+        "import numpy as np",
+        "pd = 123",
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import xarray as xr",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "xarray",
+      }),
+    ],
+  },
+  {
+    name: "Works when jupyter runStartupCommands are invalid python",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+      jupyterStartupBlock: "def : def)",
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import numpy as np",
+      "import pandas as pd",
+      "import xarray as xr",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(5, 0)],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "xarray",
+      }),
+    ],
+    errorMessage: {
+      expectedMessages: [
+        "jupyter.runStartupCommands has invalid python code. See extension output for more info",
+      ],
+    },
+  },
+  {
+    name: "Works with both jupyter runStartupCommands and startup",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+      jupyterStartupBlock: "import pandas as pd",
+    }),
+    startupDir: [{
+      name: "01-startup.py",
+      contents: [
+        "import xarray as xr",
+      ],
+    }],
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import numpy as np",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "numpy",
+      }),
+    ],
+  },
+  {
+    name: "Works with jupyter runStartupCommands if startup dir has issues",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+      jupyterStartupBlock: "import pandas as pd",
+    }),
+    startupDir: [{
+      name: "01-startup.py",
+      contents: [
+        "def : def",
+        "import xarray as xr",
+      ],
+    }],
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import numpy as np",
+      "import xarray as xr",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(4, 0)],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "numpy",
+      }),
+    ],
+    errorMessage: {
+      expectedMessages: [
+        "Startup file 01-startup.py has invalid python code. See extension output for more info",
+      ],
+    },
+  },
+  {
+    name: "Works with jupyter runStartupCommands issue and startup dir works",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+      jupyterStartupBlock: [
+        "def : def",
+        "import pandas as pd",
+      ],
+    }),
+    startupDir: [{
+      name: "01-startup.py",
+      contents: [
+        "import xarray as xr",
+      ],
+    }],
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import numpy as np",
+      "import pandas as pd",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(4, 0)],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "numpy",
+      }),
+    ],
+    errorMessage: {
+      expectedMessages: [
+        "jupyter.runStartupCommands has invalid python code. See extension output for more info",
+      ],
+    },
+  },
+  {
+    name: "Reloads jupyter settings",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+        {
+          variable: "xr",
+          import: "import xarray as xr",
+        },
+      ],
+      jupyterStartupBlock: [
+        "import numpy as np",
+        "import pandas as pd",
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = xr",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "xarray",
+      }),
+      new SettingsUpdate(defaultSettings({
+        autoImports: [
+          {
+            variable: "pd",
+            import: "import pandas as pd",
+          },
+          {
+            variable: "np",
+            import: "import numpy as np",
+          },
+          {
+            variable: "xr",
+            import: "import xarray as xr",
+          },
+        ],
+        jupyterStartupBlock: [
+          "import numpy as np",
+        ],
+      }), -1),
+      formatDoc({
+        notebook: true,
+        containsText: "pandas",
+      }),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "import xarray as xr",
+      "",
+      "",
+      "_ = np",
+      "_ = xr",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(4, 0)],
+  },
+  {
+    name: "jupyter runStartupCommands can have magic commands",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+      ],
+      jupyterStartupBlock: [
+        "%abra cadabra",
+        "import pandas as pd",
+        "%alakazam",
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import numpy as np",
+      "",
+      "",
+      "_ = np",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(3, 0)],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "numpy",
+      }),
+    ],
   },
   /* Useful for commenting out tests. */
 ];
-
-class SettingsUpdate extends Waiter {
-
-  private contents: any;
-  private noOpValue: string;
-  private initialized: boolean;
-
-  constructor(contents: any, tcIdx: number) {
-    super(5, () => {
-      return vscode.workspace.getConfiguration('no-op').get('key') === this.noOpValue;
-    }, 1000);
-
-    this.contents = contents;
-    this.initialized = false;
-    this.noOpValue = `test-number-${tcIdx}`;
-  }
-
-  async do(): Promise<any> {
-    if (!this.initialized) {
-      this.initialized = true;
-      const settingsFile = startingFile(".vscode", "settings.json");
-
-      writeFileSync(settingsFile, JSON.stringify({
-        ...this.contents,
-        "no-op": {
-          "key": this.noOpValue,
-        },
-      }, undefined, 2));
-    }
-
-    return super.do();
-  }
-}
 
 suite('Extension Test Suite', () => {
   const requireSolo = testCases.some(tc => tc.runSolo);

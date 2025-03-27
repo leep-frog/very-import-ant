@@ -81,7 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     // Handle settings updates
     vscode.workspace.onDidChangeConfiguration(e => {
-      if (e.affectsConfiguration("very-import-ant")) {
+      if (e.affectsConfiguration("very-import-ant") || e.affectsConfiguration("jupyter")) {
         vif.reload(context);
       }
     }),
@@ -102,6 +102,9 @@ interface VeryImportantSettings {
   removeUnusedImports: boolean;
   organizeImports: boolean;
   reloadableRegistrations: vscode.Disposable[];
+
+  // Settings from other extensions
+  jupyterStartupBlock?: string;
 }
 
 class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, vscode.OnTypeFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
@@ -169,6 +172,13 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     const enabled = config.get<boolean>("format.enable", false);
 
+    // Jupyter config
+    const jupyterConfig = vscode.workspace.getConfiguration("jupyter");
+    const jupyterStartupCommands = jupyterConfig.get<string | string[]>("runStartupCommands", []);
+    const [_, jupyterStartupBlock] = this.popMagicCommands(
+      typeof (jupyterStartupCommands) === "string" ? jupyterStartupCommands : jupyterStartupCommands.join("\n"),
+    );
+
     const newRegistrations = [];
     if (enabled) {
       for (const scheme of activeSchemes) {
@@ -183,7 +193,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     context.subscriptions.push(...newRegistrations);
 
     // Note that the order of the fields is how they will be displayed in the output channel.
-    const verboseSettings = {
+    const verboseSettings: VeryImportantSettings & { outputEnabled: boolean } = {
       // Note that the secondary values are soft defaults and only fallbacks to avoid
       // undefined values. Actual defaults are set in package.json.
       enabled: enabled,
@@ -195,6 +205,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       alwaysImport: config.get<string[]>("alwaysImport", []),
       autoImports: autoImportMap,
       reloadableRegistrations: newRegistrations,
+
+      jupyterStartupBlock: this.validPythonCode(jupyterStartupBlock, "jupyter.runStartupCommands") ? jupyterStartupBlock : undefined,
     };
 
     this.outputChannel.enabled = verboseSettings.outputEnabled;
@@ -333,6 +345,11 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     const textParts: string[] = [];
 
+    // Add jupyter startup commands
+    if (this.settings.jupyterStartupBlock) {
+      textParts.push(this.settings.jupyterStartupBlock);
+    }
+
     // Get python notebook startup files
     const startupDir = getStartupDir();
     this.outputChannel.log(`Checking startup directory: ${startupDir}`);
@@ -345,7 +362,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
           const fileContents = readFileSync(path.join(startupDir, startupFile), "utf-8");
           const [_, fileText] = this.popMagicCommands(fileContents);
 
-          if (this.validPythonCode(fileText)) {
+          if (this.validPythonCode(fileText, `Startup file ${startupFile}`)) {
             textParts.push(fileText);
           }
         }
@@ -399,7 +416,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     ])], true];
   }
 
-  private validPythonCode(text: string): boolean {
+  private validPythonCode(text: string, component: string): boolean {
     const [diagnostics, ok] = this.runRuffConfig(text, {
       lint: {
         select: [
@@ -408,10 +425,13 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
         ],
       },
     });
-    if (diagnostics.length > 0) {
-      this.outputChannel.log(`Invalid notebook start-up script: ${JSON.stringify(diagnostics)}`);
+    if (ok && (diagnostics.length === 0)) {
+      return true;
     }
-    return ok && (diagnostics.length === 0);
+
+    vscode.window.showErrorMessage(`${component} has invalid python code. See extension output for more info`);
+    this.outputChannel.log(`${component} has invalid python code: ${JSON.stringify(diagnostics)}`);
+    return false;
   }
 
   private findUndefinedVariables(text: string): [Set<string>, boolean] {
