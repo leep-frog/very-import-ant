@@ -1,7 +1,17 @@
-# Very Import-ant (Fast, Customizable Auto-Imports)
+# Very Import-ant
+
+## Never write import statements again
+
+The purpose of this extension is to completely remove the requirement
+for users to manually add import statements to individual files.
+
+Simply configure the imports you use (e.g. `import pandas as pd`)
+and then those imports will be added whenever the respective variable reference (e.g. `pd`) is in your Python file.
+
+## Don't Other Extensions Do This?...Not Quite
 
 Existing Python language server extensions (e.g. Pylance) implement
-auto-importing fairly well, but with a few notable drawbacks:
+auto-importing to some extent, but with a few notable drawbacks:
 
 1. The auto-import functionality requires the language server to
 create a drop-down, which occasionally takes a while to load (frequently
@@ -51,10 +61,8 @@ without *any* interruption to your development flow.
       "very-import-ant.format.enable": true,
 
       // If editor.formatOnType is true, these characters will be all characters
-      // that trigger an import check/addition. It is recommended to make this
-      // whitespace characters + the last letters of all imported variables
-      // in the autoImports.variables setting (see below).
-      "very-import-ant.onTypeTriggerCharacters": "\n \tdprt",
+      // that trigger an import check/addition.
+      "very-import-ant.onTypeTriggerCharacters": "\n \t,",
 
       // Python settings
       "[python]": {
@@ -62,7 +70,7 @@ without *any* interruption to your development flow.
 
         // If you want the imports to be added as you type
         "editor.formatOnType": true,
-        // If you want the imports to be added only when you save the file
+        // If you want the imports to be added when you save the file
         "editor.formatOnSave": true,
         // If you want the imports to be added whenever you paste something into your editor
         "editor.formatOnPaste": true,
@@ -125,9 +133,10 @@ without *any* interruption to your development flow.
 
 ## Using with Other Formatters
 
-While this extension is a technically a formatter extension, it really only does
-one thing. In order to use this extension in conjunction with another formatter
-use the [Multiple Formatters Extension](https://marketplace.visualstudio.com/items?itemName=Jota0222.multi-formatter).
+While this extension is technically a formatter extension, it really
+only does a very narrow scope of formatting. In order to use this
+extension in conjunction with another formatter use the
+[Multiple Formatters Extension](https://marketplace.visualstudio.com/items?itemName=Jota0222.multi-formatter).
 
 ## Troubleshooting
 
