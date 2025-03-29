@@ -138,6 +138,11 @@ only does a very narrow scope of formatting. In order to use this
 extension in conjunction with another formatter use the
 [Multiple Formatters Extension](https://marketplace.visualstudio.com/items?itemName=Jota0222.multi-formatter).
 
+## Ignoring Files
+
+Under the hood, this extension uses the ruff tool. To disable formatting on a
+specific file, simply add `# ruff: noqa` in the relevant python file.
+
 ## Troubleshooting
 
 See [the troubleshooting doc](./docs/troubleshooting.md) for info on known issues and fixes.

@@ -417,6 +417,25 @@ const testCases: TestCase[] = [
     ],
   },
   {
+    name: "Does not add import when ruff comment included",
+    settings: defaultSettings(),
+    fileContents: [
+      "# ruff: noqa",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "# ruff: noqa",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+  },
+  {
     name: "Adds import for single supported variable",
     settings: defaultSettings(),
     fileContents: [
