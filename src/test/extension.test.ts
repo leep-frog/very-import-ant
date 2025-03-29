@@ -417,7 +417,7 @@ const testCases: TestCase[] = [
     ],
   },
   {
-    name: "Does not add import when ruff comment included",
+    name: "Does not add import when ruff ignore comment included",
     settings: defaultSettings(),
     fileContents: [
       "# ruff: noqa",
@@ -1615,6 +1615,34 @@ const testCases: TestCase[] = [
       "    _ = pd",
     ],
     expectedSelections: [sel(1, 0)],
+  },
+  {
+    name: "Does not add import for notebook when ruff ignore comment included",
+    settings: defaultSettings(),
+    notebookContents: [
+      {
+        kind: 'code',
+        contents: [
+          "",
+          "# ruff: noqa",
+          "",
+          "def func():",
+          "    _ = pd",
+        ],
+      }
+    ],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+      }),
+    ],
+    expectedText: [
+      "",
+      "# ruff: noqa",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
   },
   {
     name: "Imports all built-in imports for notebook",
