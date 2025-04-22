@@ -79,6 +79,7 @@ without *any* interruption to your development flow.
       // If you have the ruff extension enabled and want to organize imports
       // with this extension only:
       "ruff.organizeImports": false,
+      "very-import-ant.organizeImports": true,
 
       // Notebook settings
       "notebook.defaultFormatter": "groogle.very-import-ant",
