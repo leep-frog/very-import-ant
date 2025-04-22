@@ -76,6 +76,10 @@ without *any* interruption to your development flow.
         "editor.formatOnPaste": true,
       },
 
+      // If you have the ruff extension enabled and want to organize imports
+      // with this extension only:
+      "ruff.organizeImports": false,
+
       // Notebook settings
       "notebook.defaultFormatter": "groogle.very-import-ant",
       "notebook.formatOnCellExecution": true,
