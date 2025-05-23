@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { Diagnostic, Workspace } from '@astral-sh/ruff-wasm-nodejs';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import path from 'path';
+import { parse as tomlParse } from 'toml';
 import { merge } from './range-merge';
 
 enum RuffCode {
@@ -291,21 +292,47 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     // Fortunately, it's not too, too difficult to iterate ourselves,
     // but we should look to thoroughly test this logic.
 
-    const ruffConfigs: RuffConfig[] = [
+    const ruffCheckFixes: RuffConfig[] = [
       this.addImportsConfig(document, importsToAdd, fullFormat),
       ...this.removeUnusedImportsConfigs(document, fullFormat),
     ];
+
+    const ruffFormatFixes: RuffConfig[] = [];
+
+    let forceFullTextChange = false;
+    const [toml, ok] = this.getTomlConfig(document);
+    if (!ok) {
+      return;
+    }
+    if (toml !== undefined) {
+      ruffFormatFixes.push(toml);
+      ruffCheckFixes.push(toml);
+    }
 
     // We use prevText here (instead of counting edits for example)
     // because there are cases where an auto-import causes an unrelated
     // import to be added ({variable: "pd", import: "from some import thing"}).
     // If we counted edits, this would recur, but if check the text, then it does not.
-    let prevText = text + "a";
+    let prevText = text + "some string to make the text different initially";
     for (let i = 0; prevText !== text; i++) {
       prevText = text;
 
-      for (const ruffConfig of ruffConfigs) {
-        this.outputChannel.log(`Running ruff with config: ${JSON.stringify(ruffConfig)}`);
+      // Apply ruff formatting
+      for (const ruffConfig of ruffFormatFixes) {
+        this.outputChannel.log(`Running ruff format`);
+        const [editedText, success] = this.ruffFormat(text, ruffConfig);
+        if (!success) {
+          return;
+        }
+        if (text !== editedText) {
+          forceFullTextChange = true;
+        }
+        text = editedText;
+      }
+
+      // Apply ruff checking (with auto-fixes)
+      for (const ruffConfig of ruffCheckFixes) {
+        this.outputChannel.log(`Running ruff check with config: ${JSON.stringify(ruffConfig)}`);
         const [editedText, success] = this.applyRuffConfig(text, allEdits, ruffConfig);
         if (!success) {
           return;
@@ -321,7 +348,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }
 
     // Simply return single set of edits if only run once
-    if (allEdits.length <= 0 && magicConversions.size === 0) {
+    if (!forceFullTextChange && allEdits.length <= 0 && magicConversions.size === 0) {
       return allEdits.at(0);
     }
 
@@ -331,6 +358,21 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       range: new vscode.Range(0, 0, document.lineCount, 0),
       newText: this.pushMagicCommands(text, magicConversions),
     }];
+  }
+
+  private getTomlConfig(document: vscode.TextDocument): [RuffConfig | undefined, boolean] {
+    // See https://docs.astral.sh/ruff/configuration/#config-file-discovery
+    for (let curPath = document.uri.fsPath; path.dirname(curPath) !== curPath; curPath = path.dirname(curPath)) {
+      for (const tomlBasename of ["ruff.toml", ".ruff.toml"]) {
+        // TODO: Add support for pyproject.toml
+        const tomlPath = path.join(path.dirname(curPath), tomlBasename);
+        if (existsSync(tomlPath)) {
+          this.outputChannel.log(`Found toml config at: ${tomlPath}`);
+          return this.tomlParse(readFileSync(tomlPath, "utf-8"));
+        }
+      }
+    }
+    return [undefined, true];
   }
 
   private getCombinedNotebookCellText(document: vscode.TextDocument, stopAtCurrent: boolean): string | undefined {
@@ -417,7 +459,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   private validPythonCode(text: string, component: string): boolean {
-    const [diagnostics, ok] = this.runRuffConfig(text, {
+    const [diagnostics, ok] = this.ruffCheck(text, {
       lint: {
         select: [
           // Only care about syntax errors
@@ -435,7 +477,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   private findUndefinedVariables(text: string): [Set<string>, boolean] {
-    const [diagnostics, ok] = this.runRuffConfig(text, {
+    const [diagnostics, ok] = this.ruffCheck(text, {
       lint: {
         select: [
           RuffCode.UNDEFINED_NAME,
@@ -527,7 +569,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   private applyRuffConfig(text: string, editList: vscode.TextEdit[][], ruffConfig: RuffConfig): [string, boolean] {
-    const [diags, ok] = this.runRuffConfig(text, ruffConfig);
+    const [diags, ok] = this.ruffCheck(text, ruffConfig);
 
     if (!ok) {
       return ["", false];
@@ -588,7 +630,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       // Add new text
       edit.newText,
 
-      // Add postamble characters
+      // Add post-amble characters
       lines[edit.range.end.line].slice(edit.range.end.character),
     );
 
@@ -603,14 +645,36 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     return editLines.join("");
   }
 
-  private runRuffConfig(text: string, ruffConfig: RuffConfig): [Diagnostic[], boolean] {
+  private ruffCheck(text: string, ruffConfig: RuffConfig): [Diagnostic[], boolean] {
+    return this.doRuffThing<Diagnostic[]>(text, ruffConfig, (workspace: Workspace, text: string) => {
+      return workspace.check(text);
+    }, []);
+  }
+
+  private ruffFormat(text: string, ruffConfig: RuffConfig): [string, boolean] {
+    return this.doRuffThing<string>(text, ruffConfig, (workspace: Workspace, text: string) => {
+      return workspace.format(text);
+    }, "");
+  }
+
+  private doRuffThing<T>(text: string, ruffConfig: RuffConfig, func: (workspace: Workspace, text: string) => T, errorResp: T): [T, boolean] {
     let isortConfig;
     try {
       isortConfig = new Workspace(ruffConfig);
-      return [isortConfig.check(text), true];
+      return [func(isortConfig, text), true];
     } catch (e) {
       vscode.window.showErrorMessage(`Failed to create ruff config: ${e}`);
-      return [[], false];
+      return [errorResp, false];
+    }
+  }
+
+  private tomlParse(text: string): [RuffConfig, boolean] {
+    try {
+      const toml = tomlParse(text);
+      return [toml, true];
+    } catch (e) {
+      vscode.window.showErrorMessage(`Failed to parse toml file: ${e}`);
+      return [{ lint: {} }, false];
     }
   }
 

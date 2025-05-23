@@ -207,9 +207,43 @@ interface TestCase extends SimpleTestCaseProps {
   notebookContents?: NotebookCell[];
   userProfileForHome?: boolean;
   noHome?: boolean;
+  tomlConfig?: TomlConfig;
+}
+
+interface TomlConfig {
+  path: string;
+  contents: string[];
 }
 
 
+function tomlTestCase(name: string, filepath: string): TestCase {
+  return {
+    name: name,
+    settings: defaultSettings(),
+    tomlConfig: {
+      path: filepath,
+      contents: [
+        `indent-width = 1`,
+        `select = ["UP004"]`,
+      ],
+    },
+    fileContents: [
+      `class Hello(object):`,
+      `    pass`,
+      ``,
+    ],
+    expectedText: [
+      `class Hello:`,
+      ` pass`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({
+        containsText: "Hello:",
+      }),
+    ],
+  };
+}
 
 const testCases: TestCase[] = [
   // enable setting tests
@@ -4419,6 +4453,95 @@ const testCases: TestCase[] = [
       }),
     ],
   },
+  // tomlFile tests
+  {
+    name: "handles invalid toml",
+    settings: defaultSettings(),
+    tomlConfig: {
+      path: startingFile("ruff.toml"),
+      contents: [
+        `[lint`,
+      ],
+    },
+    fileContents: [
+      'def func():',
+      '    _ = pd',
+      '    _ = np',
+    ],
+    expectedText: [
+      'def func():',
+      '    _ = pd',
+      '    _ = np',
+    ],
+    errorMessage: {
+      expectedMessages: [
+        "Failed to parse toml file: SyntaxError: Expected \".\", \"]\", [ \\t] or [A-Za-z0-9_\\-] but end of input found.",
+      ],
+    },
+    userInteractions: [
+      formatDoc(),
+    ],
+  },
+  {
+    name: "[toml] applies formatting settings",
+    settings: defaultSettings(),
+    tomlConfig: {
+      path: startingFile("ruff.toml"),
+      contents: [
+        `indent-width = 7`,
+      ],
+    },
+    fileContents: [
+      'def func():',
+      '    _ = pd',
+      '    _ = np',
+    ],
+    expectedText: [
+      'import numpy as np',
+      'import pandas as pd',
+      '',
+      '',
+      'def func():',
+      '       _ = pd',
+      '       _ = np',
+      '',
+    ],
+    expectedSelections: [sel(4, 0)],
+    userInteractions: [
+      formatDoc({
+        containsText: "       ",
+      }),
+    ],
+  },
+  {
+    name: "[toml] applies check fixes",
+    settings: defaultSettings(),
+    tomlConfig: {
+      path: startingFile("ruff.toml"),
+      contents: [
+        `select = ["UP004"]`,
+      ],
+    },
+    fileContents: [
+      `class Hello(object):`,
+      `    pass`,
+      ``,
+    ],
+    expectedText: [
+      `class Hello:`,
+      `    pass`,
+      ``,
+    ],
+    userInteractions: [
+      formatDoc({
+        containsText: "Hello:",
+      }),
+    ],
+  },
+  tomlTestCase("[toml] applies formatting and check fixes", startingFile("ruff.toml")),
+  tomlTestCase("[toml] works for .ruff.toml file", startingFile(".ruff.toml")),
+  tomlTestCase("[toml] works when in parent directory", startingFile("..", "ruff.toml")),
+  tomlTestCase("[toml] works when .ruff.toml is in parent directory", startingFile("..", ".ruff.toml")),
   /* Useful for commenting out tests. */
 ];
 
@@ -4476,6 +4599,10 @@ suite('Extension Test Suite', () => {
         tc.file = startingFile(filename);
       }
 
+      if (tc.tomlConfig) {
+        writeFileSync(tc.tomlConfig.path, tc.tomlConfig.contents.join("\n"));
+      }
+
       if (!tc.workspaceConfiguration) {
         tc.workspaceConfiguration = {
           skip: true,
@@ -4489,6 +4616,10 @@ suite('Extension Test Suite', () => {
       // Run test
       await new SimpleTestCase(tc).runTest().catch((e: any) => {
         throw e;
+      }).finally(() => {
+        if (tc.tomlConfig) {
+          rmSync(tc.tomlConfig.path);
+        }
       });
     });
   });
