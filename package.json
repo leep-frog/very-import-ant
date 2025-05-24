@@ -47,6 +47,11 @@
           "default": "\n",
           "type": "string"
         },
+        "very-import-ant.ruffFormatting.enable": {
+          "default": false,
+          "description": "Whether or not to run the full ruff formatter on files. If false, only the auto-imports will be added.",
+          "type": "boolean"
+        },
         "very-import-ant.ignoreSchemes": {
           "description": "The list of VS Code document schemes that will *not* be formatted by this extension.",
           "default": [],

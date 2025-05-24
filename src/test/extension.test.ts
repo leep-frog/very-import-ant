@@ -138,6 +138,8 @@ interface VeryImportConfig {
     import: string;
   }[],
   ignoreSchemes?: string[];
+  ruffFormatting?: boolean;
+  undefinedRuffFormatting?: boolean;
   jupyterStartupBlock?: string | string[];
 }
 
@@ -173,6 +175,7 @@ function defaultSettings(config?: VeryImportConfig) {
     },
     "files.eol": "\n",
     "very-import-ant.format.enable": config?.enabled ?? true,
+    "very-import-ant.ruffFormatting.enable": config?.undefinedRuffFormatting ? undefined : (config?.ruffFormatting ?? true),
     "very-import-ant.ignoreSchemes": config?.ignoreSchemes ?? [],
     "very-import-ant.onTypeTriggerCharacters": config?.onTypeTriggerCharacters,
     "notebook.defaultFormatter": "groogle.very-import-ant",
@@ -4694,6 +4697,98 @@ const testCases: TestCase[] = [
   tomlTestCase("[toml] works for .ruff.toml file", startingFile(".ruff.toml")),
   tomlTestCase("[toml] works when in parent directory", startingFile("..", "ruff.toml")),
   tomlTestCase("[toml] works when .ruff.toml is in parent directory", startingFile("..", ".ruff.toml")),
+  // ruffFormatting.enable tests
+  {
+    name: "ruff formats when ruffFormatting.enable is true",
+    runSolo: true,
+    tomlConfig: simpleTomlConfig({
+      removeUnusedImports: true,
+    }),
+    settings: defaultSettings({
+      ruffFormatting: true,
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+      ],
+    }),
+    fileContents: [
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+      "",
+    ],
+    expectedSelections: [sel(0, 10)],
+  },
+  {
+    name: "no ruff format when ruffFormatting.enable is false",
+    runSolo: true,
+    tomlConfig: simpleTomlConfig({
+      removeUnusedImports: true,
+    }),
+    settings: defaultSettings({
+      ruffFormatting: false,
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+      ],
+    }),
+    fileContents: [
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
+  },
+  {
+    name: "no ruff format when ruffFormatting.enable is undefined",
+    runSolo: true,
+    tomlConfig: simpleTomlConfig({
+      removeUnusedImports: true,
+    }),
+    settings: defaultSettings({
+      ruffFormatting: undefined,
+      undefinedRuffFormatting: true,
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+      ],
+    }),
+    fileContents: [
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
+  },
   /* Useful for commenting out tests. */
 ];
 

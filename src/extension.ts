@@ -100,6 +100,7 @@ interface VeryImportantSettings {
   enabled: boolean;
   autoImports: Map<string, string[]>;
   reloadableRegistrations: vscode.Disposable[];
+  enableRuffFormatting: boolean;
 
   // Settings from other extensions
   jupyterStartupBlock?: string;
@@ -210,6 +211,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       outputEnabled: config.get<boolean>("output.enable", false),
       autoImports: autoImportMap,
       reloadableRegistrations: newRegistrations,
+      enableRuffFormatting: config.get<boolean>("ruffFormatting.enable", false),
 
       jupyterStartupBlock: this.validPythonCode({ isInitFile: false, isNotebook: false }, jupyterStartupBlock, "jupyter.runStartupCommands") ? jupyterStartupBlock : undefined,
     };
@@ -378,6 +380,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   private getTomlConfig(document: vscode.TextDocument): [RuffConfig | undefined, boolean] {
+    if (!this.settings.enableRuffFormatting) {
+      return [undefined, true];
+    }
+
     // See https://docs.astral.sh/ruff/configuration/#config-file-discovery
     for (let curPath = document.uri.fsPath; path.dirname(curPath) !== curPath; curPath = path.dirname(curPath)) {
       for (const tomlBasename of ["ruff.toml", ".ruff.toml"]) {

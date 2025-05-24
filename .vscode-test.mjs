@@ -11,6 +11,6 @@ export default defineConfig({
   },
   mocha: {
     timeout: 60000,
-    slow: 800,
+    slow: 1200,
   },
 });
