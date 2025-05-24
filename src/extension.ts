@@ -110,6 +110,11 @@ interface DocumentInfo {
   isNotebook: boolean;
 }
 
+interface RuffCheck {
+  config: RuffConfig;
+  forceAutoImports: boolean;
+}
+
 class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, vscode.OnTypeFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
 
   settings: VeryImportantSettings;
@@ -299,8 +304,11 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     // Fortunately, it's not too, too difficult to iterate ourselves,
     // but we should look to thoroughly test this logic.
 
-    const ruffCheckFixes: [boolean, RuffConfig][] = [
-      [true, this.addImportsConfig(document, importsToAdd, fullFormat)],
+    const ruffCheckFixes: RuffCheck[] = [
+      {
+        config: this.addImportsConfig(document, importsToAdd, fullFormat),
+        forceAutoImports: true,
+      },
     ];
 
     const ruffFormatFixes: RuffConfig[] = [];
@@ -312,7 +320,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }
     if (fullFormat && toml !== undefined) {
       ruffFormatFixes.push(toml);
-      ruffCheckFixes.push([false, toml]);
+      ruffCheckFixes.push({
+        config: toml,
+        forceAutoImports: false,
+      });
     }
 
     // We use prevText here (instead of counting edits for example)
@@ -337,9 +348,9 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       }
 
       // Apply ruff checking (with auto-fixes)
-      for (const [forceAutoImports, ruffConfig] of ruffCheckFixes) {
-        this.outputChannel.log(`Running ruff check with config: ${JSON.stringify(ruffConfig)}`);
-        const [editedText, success] = this.applyRuffConfig(documentInfo, text, allEdits, ruffConfig, forceAutoImports);
+      for (const ruffCheck of ruffCheckFixes) {
+        this.outputChannel.log(`Running ruff check with config: ${JSON.stringify(ruffCheck)}`);
+        const [editedText, success] = this.applyRuffConfig(documentInfo, text, allEdits, ruffCheck);
         if (!success) {
           return;
         }
@@ -468,13 +479,16 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
   private validPythonCode(documentInfo: DocumentInfo, text: string, component: string): boolean {
     const [diagnostics, ok] = this.ruffCheck(documentInfo, text, {
-      lint: {
-        select: [
-          // Only care about syntax errors
-          "E9",
-        ],
+      forceAutoImports: false,
+      config: {
+        lint: {
+          select: [
+            // Only care about syntax errors
+            "E9",
+          ],
+        },
       },
-    }, false);
+    });
     if (ok && (diagnostics.length === 0)) {
       return true;
     }
@@ -486,12 +500,15 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
   private findUndefinedVariables(documentInfo: DocumentInfo, text: string): [Set<string>, boolean] {
     const [diagnostics, ok] = this.ruffCheck(documentInfo, text, {
-      lint: {
-        select: [
-          RuffCode.UNDEFINED_NAME,
-        ],
+      forceAutoImports: false,
+      config: {
+        lint: {
+          select: [
+            RuffCode.UNDEFINED_NAME,
+          ],
+        },
       },
-    }, false);
+    });
     if (!ok) {
       return [new Set(), false];
     }
@@ -542,8 +559,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     };
   }
 
-  private applyRuffConfig(documentInfo: DocumentInfo, text: string, editList: vscode.TextEdit[][], ruffConfig: RuffConfig, forceAutoImports: boolean): [string, boolean] {
-    const [diags, ok] = this.ruffCheck(documentInfo, text, ruffConfig, forceAutoImports);
+  private applyRuffConfig(documentInfo: DocumentInfo, text: string, editList: vscode.TextEdit[][], ruffCheck: RuffCheck): [string, boolean] {
+    const [diags, ok] = this.ruffCheck(documentInfo, text, ruffCheck);
 
     if (!ok) {
       return ["", false];
@@ -619,11 +636,11 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     return editLines.join("");
   }
 
-  private ruffCheck(documentInfo: DocumentInfo, text: string, ruffConfig: RuffConfig, autoImport: boolean): [Diagnostic[], boolean] {
+  private ruffCheck(documentInfo: DocumentInfo, text: string, ruffCheck: RuffCheck): [Diagnostic[], boolean] {
     return this.doRuffThing<Diagnostic[]>(
-      documentInfo, text, ruffConfig,
+      documentInfo, text, ruffCheck.config,
       (workspace: Workspace, text: string) => workspace.check(text),
-      [], autoImport,
+      [], ruffCheck.forceAutoImports,
     );
   }
 
