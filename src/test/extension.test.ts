@@ -4700,7 +4700,6 @@ const testCases: TestCase[] = [
   // ruffFormatting.enable tests
   {
     name: "ruff formats when ruffFormatting.enable is true",
-    runSolo: true,
     tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
     }),
@@ -4732,7 +4731,6 @@ const testCases: TestCase[] = [
   },
   {
     name: "no ruff format when ruffFormatting.enable is false",
-    runSolo: true,
     tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
     }),
@@ -4761,7 +4759,6 @@ const testCases: TestCase[] = [
   },
   {
     name: "no ruff format when ruffFormatting.enable is undefined",
-    runSolo: true,
     tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
     }),
