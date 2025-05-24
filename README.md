@@ -76,11 +76,6 @@ without *any* interruption to your development flow.
         "editor.formatOnPaste": true,
       },
 
-      // If you have the ruff extension enabled and want to organize imports
-      // with this extension only:
-      "ruff.organizeImports": false,
-      "very-import-ant.organizeImports": true,
-
       // Notebook settings
       "notebook.defaultFormatter": "groogle.very-import-ant",
       "notebook.formatOnCellExecution": true,
@@ -138,10 +133,18 @@ without *any* interruption to your development flow.
 
 ## Using with Other Formatters
 
-While this extension is technically a formatter extension, it really
-only does a very narrow scope of formatting. In order to use this
-extension in conjunction with another formatter use the
-[Multiple Formatters Extension](https://marketplace.visualstudio.com/items?itemName=Jota0222.multi-formatter).
+While this extension is technically a formatter extension, it's purpose
+is very limited. However, since this formatter use `ruff` under the hood,
+you can enable ruff formatting on your files by adding the following to
+your settings:
+
+```json
+"very-import-ant.fullRuffFormatting": true
+```
+
+This can also be used with other VS Code formatters once [this VS Code
+feature request](https://github.com/microsoft/vscode/issues/245742) is
+complete (please thumbs up it to get it prioritized!).
 
 ## Ignoring Files
 

@@ -4,9 +4,9 @@ import { Diagnostic, Workspace } from '@astral-sh/ruff-wasm-nodejs';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import { parse as tomlParse } from 'toml';
-import { merge } from './range-merge';
+import { disjointEdits } from './range-merge';
 
-enum RuffCode {
+export enum RuffCode {
   UNUSED_IMPORT = 'F401',
   UNDEFINED_NAME = 'F821',
   UNSORTED_IMPORTS = 'I001',
@@ -99,13 +99,15 @@ interface AutoImport {
 interface VeryImportantSettings {
   enabled: boolean;
   autoImports: Map<string, string[]>;
-  alwaysImport: string[];
-  removeUnusedImports: boolean;
-  organizeImports: boolean;
   reloadableRegistrations: vscode.Disposable[];
 
   // Settings from other extensions
   jupyterStartupBlock?: string;
+}
+
+interface DocumentInfo {
+  isInitFile: boolean;
+  isNotebook: boolean;
 }
 
 class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, vscode.OnTypeFormattingEditProvider, vscode.DocumentRangeFormattingEditProvider {
@@ -201,13 +203,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       // This is only added here for JSON output in output channel; it is not
       // included in the settings object returned
       outputEnabled: config.get<boolean>("output.enable", false),
-      removeUnusedImports: config.get<boolean>("removeUnusedImports", false),
-      organizeImports: config.get<boolean>("organizeImports", false),
-      alwaysImport: config.get<string[]>("alwaysImport", []),
       autoImports: autoImportMap,
       reloadableRegistrations: newRegistrations,
 
-      jupyterStartupBlock: this.validPythonCode(jupyterStartupBlock, "jupyter.runStartupCommands") ? jupyterStartupBlock : undefined,
+      jupyterStartupBlock: this.validPythonCode({ isInitFile: false, isNotebook: false }, jupyterStartupBlock, "jupyter.runStartupCommands") ? jupyterStartupBlock : undefined,
     };
 
     this.outputChannel.enabled = verboseSettings.outputEnabled;
@@ -283,7 +282,15 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     return lines.join("\n");
   }
 
+  private toDocumentInfo(document: vscode.TextDocument): DocumentInfo {
+    return {
+      isInitFile: path.basename(document.fileName) === "__init__.py",
+      isNotebook: document.uri.scheme === NOTEBOOK_SCHEME,
+    };
+  }
+
   private fixDocument(document: vscode.TextDocument, text: string, importsToAdd: string[], fullFormat: boolean, magicConversions: Map<string, string>): vscode.ProviderResult<vscode.TextEdit[]> {
+    const documentInfo = this.toDocumentInfo(document);
     // Generate the new text
     const allEdits: vscode.TextEdit[][] = [];
 
@@ -292,9 +299,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     // Fortunately, it's not too, too difficult to iterate ourselves,
     // but we should look to thoroughly test this logic.
 
-    const ruffCheckFixes: RuffConfig[] = [
-      this.addImportsConfig(document, importsToAdd, fullFormat),
-      ...this.removeUnusedImportsConfigs(document, fullFormat),
+    const ruffCheckFixes: [boolean, RuffConfig][] = [
+      [true, this.addImportsConfig(document, importsToAdd, fullFormat)],
     ];
 
     const ruffFormatFixes: RuffConfig[] = [];
@@ -304,9 +310,9 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     if (!ok) {
       return;
     }
-    if (toml !== undefined) {
+    if (fullFormat && toml !== undefined) {
       ruffFormatFixes.push(toml);
-      ruffCheckFixes.push(toml);
+      ruffCheckFixes.push([false, toml]);
     }
 
     // We use prevText here (instead of counting edits for example)
@@ -320,7 +326,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       // Apply ruff formatting
       for (const ruffConfig of ruffFormatFixes) {
         this.outputChannel.log(`Running ruff format`);
-        const [editedText, success] = this.ruffFormat(text, ruffConfig);
+        const [editedText, success] = this.ruffFormat(documentInfo, text, ruffConfig, false);
         if (!success) {
           return;
         }
@@ -331,9 +337,9 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       }
 
       // Apply ruff checking (with auto-fixes)
-      for (const ruffConfig of ruffCheckFixes) {
+      for (const [forceAutoImports, ruffConfig] of ruffCheckFixes) {
         this.outputChannel.log(`Running ruff check with config: ${JSON.stringify(ruffConfig)}`);
-        const [editedText, success] = this.applyRuffConfig(text, allEdits, ruffConfig);
+        const [editedText, success] = this.applyRuffConfig(documentInfo, text, allEdits, ruffConfig, forceAutoImports);
         if (!success) {
           return;
         }
@@ -377,6 +383,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
   private getCombinedNotebookCellText(document: vscode.TextDocument, stopAtCurrent: boolean): string | undefined {
     // Get the NotebookDocument from the active text document
+    const documentInfo = this.toDocumentInfo(document);
     const notebook = vscode.workspace.notebookDocuments.find(nb =>
       nb.getCells().some(cell => cell.document.uri.toString() === document.uri.toString())
     );
@@ -404,7 +411,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
           const fileContents = readFileSync(path.join(startupDir, startupFile), "utf-8");
           const [_, fileText] = this.popMagicCommands(fileContents);
 
-          if (this.validPythonCode(fileText, `Startup file ${startupFile}`)) {
+          if (this.validPythonCode(documentInfo, fileText, `Startup file ${startupFile}`)) {
             textParts.push(fileText);
           }
         }
@@ -425,8 +432,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   private determineImports(document: vscode.TextDocument, text: string): [string[], boolean] {
+    const documentInfo = this.toDocumentInfo(document);
+
     // Find all undefined variables
-    let [undefinedImports, ok] = this.getUndefinedVariableAutoImports(text);
+    let [undefinedImports, ok] = this.getUndefinedVariableAutoImports(documentInfo, text);
     this.outputChannel.log(`Found undefined variables (${undefinedImports.size}): ${JSON.stringify([...undefinedImports], undefined, 2)}`);
     if (!ok) {
       return [[], false];
@@ -439,7 +448,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       }
 
       // Run ruff on the merged text from all code cells
-      const [undefinedFileImports, ok] = this.getUndefinedVariableAutoImports(notebookCellText);
+      const [undefinedFileImports, ok] = this.getUndefinedVariableAutoImports(documentInfo, notebookCellText);
       this.outputChannel.log(`Found undefined file imports: ${JSON.stringify([...undefinedFileImports], undefined, 2)}`);
       if (!ok) {
         return [[], false];
@@ -453,20 +462,19 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     }
 
     return [[...new Set([
-      ...this.getAlwaysImports(document),
       ...undefinedImports,
     ])], true];
   }
 
-  private validPythonCode(text: string, component: string): boolean {
-    const [diagnostics, ok] = this.ruffCheck(text, {
+  private validPythonCode(documentInfo: DocumentInfo, text: string, component: string): boolean {
+    const [diagnostics, ok] = this.ruffCheck(documentInfo, text, {
       lint: {
         select: [
           // Only care about syntax errors
           "E9",
         ],
       },
-    });
+    }, false);
     if (ok && (diagnostics.length === 0)) {
       return true;
     }
@@ -476,14 +484,14 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     return false;
   }
 
-  private findUndefinedVariables(text: string): [Set<string>, boolean] {
-    const [diagnostics, ok] = this.ruffCheck(text, {
+  private findUndefinedVariables(documentInfo: DocumentInfo, text: string): [Set<string>, boolean] {
+    const [diagnostics, ok] = this.ruffCheck(documentInfo, text, {
       lint: {
         select: [
           RuffCode.UNDEFINED_NAME,
         ],
       },
-    });
+    }, false);
     if (!ok) {
       return [new Set(), false];
     }
@@ -502,9 +510,9 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     })), true];
   }
 
-  private getUndefinedVariableAutoImports(text: string): [Set<string>, boolean] {
+  private getUndefinedVariableAutoImports(documentInfo: DocumentInfo, text: string): [Set<string>, boolean] {
     // Find all undefined variables
-    const [undefinedVariables, ok] = this.findUndefinedVariables(text);
+    const [undefinedVariables, ok] = this.findUndefinedVariables(documentInfo, text);
     if (!ok) {
       return [new Set(), false];
     }
@@ -514,44 +522,10 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     return [new Set(undefinedImports), true];
   }
 
-  private getAlwaysImports(document: vscode.TextDocument): string[] {
-    // We don't want to always import in notebook mode, but if we do
-    // just add a separate setting per scheme (notebook vs python).
-    // There is an open VS Code issue to have this natively: https://github.com/microsoft/vscode/issues/195011
-    // so perhaps we can just leave as is until that is implemented.
-    if (document.uri.scheme === NOTEBOOK_SCHEME || this.isInitFile(document)) {
-      return [];
-    }
-    return this.settings.alwaysImport;
-  }
-
-  private isInitFile(document: vscode.TextDocument): boolean {
-    return path.basename(document.fileName) === "__init__.py";
-  }
-
-  private removeUnusedImportsConfigs(document: vscode.TextDocument, fullFormat: boolean): RuffConfig[] {
-    // Same reasoning as getAlwaysImport above for some of these conditions.
-    if (!fullFormat || document.uri.scheme === NOTEBOOK_SCHEME || !this.settings.removeUnusedImports || this.isInitFile(document)) {
-      return [];
-    }
-    return [{
-      lint: {
-        select: [
-          RuffCode.UNUSED_IMPORT,
-          RuffCode.MISSING_REQUIRED_IMPORT,
-        ],
-        isort: {
-          "required-imports": this.getAlwaysImports(document)
-        },
-      }
-    }];
-  }
-
   private addImportsConfig(document: vscode.TextDocument, importsToAdd: string[], fullFormat: boolean): RuffConfig {
     return {
       lint: {
         select: [
-          ...((fullFormat && this.settings.organizeImports && !this.isInitFile(document)) ? [RuffCode.UNSORTED_IMPORTS] : []),
           RuffCode.MISSING_REQUIRED_IMPORT,
         ],
         isort: {
@@ -568,8 +542,8 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     };
   }
 
-  private applyRuffConfig(text: string, editList: vscode.TextEdit[][], ruffConfig: RuffConfig): [string, boolean] {
-    const [diags, ok] = this.ruffCheck(text, ruffConfig);
+  private applyRuffConfig(documentInfo: DocumentInfo, text: string, editList: vscode.TextEdit[][], ruffConfig: RuffConfig, forceAutoImports: boolean): [string, boolean] {
+    const [diags, ok] = this.ruffCheck(documentInfo, text, ruffConfig, forceAutoImports);
 
     if (!ok) {
       return ["", false];
@@ -584,7 +558,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
   }
 
   private applyDiagnosticEdits(text: string, diagnostics: Diagnostic[], editList: vscode.TextEdit[][]): string {
-    const edits = merge(diagnostics.flatMap(diag => diag.fix?.edits || []).map((edit): vscode.TextEdit => {
+    const edits = disjointEdits(diagnostics.flatMap(diag => diag.fix?.edits || []).map((edit): vscode.TextEdit => {
       return {
         range: new vscode.Range(edit.location.row - 1, edit.location.column - 1, edit.end_location.row - 1, edit.end_location.column - 1),
         newText: edit.content || "",
@@ -634,7 +608,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       lines[edit.range.end.line].slice(edit.range.end.character),
     );
 
-    // Add postamble lines
+    // Add post-amble lines
     if (edit.range.end.line + 1 < lines.length) {
       editLines.push(
         "\n",
@@ -645,19 +619,46 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     return editLines.join("");
   }
 
-  private ruffCheck(text: string, ruffConfig: RuffConfig): [Diagnostic[], boolean] {
-    return this.doRuffThing<Diagnostic[]>(text, ruffConfig, (workspace: Workspace, text: string) => {
-      return workspace.check(text);
-    }, []);
+  private ruffCheck(documentInfo: DocumentInfo, text: string, ruffConfig: RuffConfig, autoImport: boolean): [Diagnostic[], boolean] {
+    return this.doRuffThing<Diagnostic[]>(
+      documentInfo, text, ruffConfig,
+      (workspace: Workspace, text: string) => workspace.check(text),
+      [], autoImport,
+    );
   }
 
-  private ruffFormat(text: string, ruffConfig: RuffConfig): [string, boolean] {
-    return this.doRuffThing<string>(text, ruffConfig, (workspace: Workspace, text: string) => {
-      return workspace.format(text);
-    }, "");
+  private ruffFormat(documentInfo: DocumentInfo, text: string, ruffConfig: RuffConfig, autoImport: boolean): [string, boolean] {
+    return this.doRuffThing<string>(
+      documentInfo, text, ruffConfig,
+      (workspace: Workspace, text: string) => workspace.format(text),
+      "", autoImport,
+    );
   }
 
-  private doRuffThing<T>(text: string, ruffConfig: RuffConfig, func: (workspace: Workspace, text: string) => T, errorResp: T): [T, boolean] {
+  private doRuffThing<T>(documentInfo: DocumentInfo, text: string, ruffConfig: RuffConfig, func: (workspace: Workspace, text: string) => T, errorResp: T, autoImport: boolean): [T, boolean] {
+    if (documentInfo.isInitFile) {
+      ruffConfig.ignore = [
+        ...(ruffConfig.ignore || []),
+        RuffCode.UNUSED_IMPORT,
+        RuffCode.UNSORTED_IMPORTS,
+      ];
+    }
+
+    if (documentInfo.isNotebook) {
+      ruffConfig.ignore = [
+        ...(ruffConfig.ignore || []),
+        RuffCode.UNUSED_IMPORT,
+      ];
+
+      // Always want to import if it's an auto-import
+      if (!autoImport) {
+        ruffConfig.ignore = [
+          ...(ruffConfig.ignore || []),
+          RuffCode.MISSING_REQUIRED_IMPORT,
+        ];
+      }
+    }
+
     let isortConfig;
     try {
       isortConfig = new Workspace(ruffConfig);
@@ -751,7 +752,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
     if (!docText) {
       return false;
     }
-    const [undefinedVariables, ok] = this.findUndefinedVariables(docText);
+    const [undefinedVariables, ok] = this.findUndefinedVariables(this.toDocumentInfo(editor.document), docText);
     if (undefinedVariables.size === 0) {
       return false;
     }
@@ -816,6 +817,7 @@ export function deactivate() { }
 // Below are just typed Ruff object definitions
 interface RuffConfig {
   lint: LintConfig;
+  ignore?: string[];
   format?: FormatConfig;
   'line-length'?: number;
 }

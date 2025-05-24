@@ -47,23 +47,6 @@
           "default": "\n",
           "type": "string"
         },
-        "very-import-ant.alwaysImport": {
-          "description": "List of import statements that should always be included",
-          "default": [
-            "from __future__ import annotations"
-          ],
-          "type": "array"
-        },
-        "very-import-ant.removeUnusedImports": {
-          "description": "Whether or not to remove unused imports",
-          "default": false,
-          "type": "boolean"
-        },
-        "very-import-ant.organizeImports": {
-          "description": "Whether or not to organize imports",
-          "default": false,
-          "type": "boolean"
-        },
         "very-import-ant.ignoreSchemes": {
           "description": "The list of VS Code document schemes that will *not* be formatted by this extension.",
           "default": [],

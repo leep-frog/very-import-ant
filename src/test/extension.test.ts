@@ -2,6 +2,7 @@ import { CloseQuickPickAction, cmd, combineInteractions, delay, SelectItemQuickP
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
+import { RuffCode } from '../extension';
 
 function startingFile(...filename: string[]) {
   return path.resolve(__dirname, "..", "..", "src", "test", "test-workspace", path.join(...filename));
@@ -136,9 +137,6 @@ interface VeryImportConfig {
     variable: string;
     import: string;
   }[],
-  alwaysImport?: string[];
-  removeUnusedImports?: boolean;
-  organizeImports?: boolean;
   ignoreSchemes?: string[];
   jupyterStartupBlock?: string | string[];
 }
@@ -175,9 +173,6 @@ function defaultSettings(config?: VeryImportConfig) {
     },
     "files.eol": "\n",
     "very-import-ant.format.enable": config?.enabled ?? true,
-    "very-import-ant.removeUnusedImports": config?.removeUnusedImports ?? false,
-    "very-import-ant.organizeImports": config?.organizeImports ?? true,
-    "very-import-ant.alwaysImport": config?.alwaysImport ?? [],
     "very-import-ant.ignoreSchemes": config?.ignoreSchemes ?? [],
     "very-import-ant.onTypeTriggerCharacters": config?.onTypeTriggerCharacters,
     "notebook.defaultFormatter": "groogle.very-import-ant",
@@ -214,6 +209,57 @@ interface TomlConfig {
   path: string;
   contents: string[];
 }
+
+interface SimpleTomlConfigProps {
+  removeUnusedImports?: boolean;
+  alwaysImport?: string[];
+  organizeImports?: boolean;
+}
+
+function simpleTomlConfig(props: SimpleTomlConfigProps): TomlConfig {
+
+  const rules: string[] = [];
+  const otherLines: string[] = [];
+
+  if (props.removeUnusedImports) {
+    rules.push(RuffCode.UNUSED_IMPORT);
+  }
+  const lintIsortSectionAdded = !!props.organizeImports;
+  if (props.organizeImports) {
+    rules.push(RuffCode.UNSORTED_IMPORTS);
+    otherLines.push(
+      'line-length = 80',
+      "",
+      "[format]",
+      "skip-magic-trailing-comma = true",
+      "",
+      "[lint.isort]",
+      'lines-after-imports = 2',
+      `combine-as-imports = true`,
+      `split-on-trailing-comma = false`,
+      "",
+    );
+  }
+  if (props.alwaysImport !== undefined) {
+    rules.push(RuffCode.MISSING_REQUIRED_IMPORT);
+    otherLines.push(
+      lintIsortSectionAdded ? "" : "[lint.isort]",
+      `required-imports = [${props.alwaysImport.map(r => `"${r}"`).join(", ")}]`,
+      "",
+    );
+  }
+
+  return {
+    path: startingFile("ruff.toml"),
+    contents: [
+      ...otherLines,
+      ``,
+      `[lint]`,
+      `select = [${rules.map(r => `"${r}"`).join(", ")}]`,
+    ],
+  };
+}
+
 
 
 function tomlTestCase(name: string, filepath: string): TestCase {
@@ -274,12 +320,10 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import pandas as pd",
-      "",
-      "",
       "def func():",
       "    _ = pd",
     ],
-    expectedSelections: [sel(3, 0)]
+    expectedSelections: [sel(1, 0)]
   },
   {
     name: "Doesn't work again if disabled again",
@@ -382,9 +426,11 @@ const testCases: TestCase[] = [
     ],
   },
   {
-    name: "Handles invalid import (as the file text will be idenitcal before and after, so iteration ends)",
-    settings: defaultSettings({
+    name: "Handles invalid import (as the file text will be identical before and after, so iteration ends)",
+    tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
+    }),
+    settings: defaultSettings({
       autoImports: [
         {
           variable: "pd",
@@ -402,10 +448,9 @@ const testCases: TestCase[] = [
       formatDoc(),
     ],
     expectedText: [
-      "",
-      "",
       "def func():",
       "    _ = pd",
+      "",
     ],
   },
   {
@@ -445,7 +490,6 @@ const testCases: TestCase[] = [
       `"""Some docstring."""`,
       "import pandas as pd",
       "",
-      "",
       "def func():",
       "    _ = pd",
     ],
@@ -481,12 +525,10 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import pandas as pd",
-      "",
-      "",
       "def func():",
       "    _ = pd",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
   },
   {
     name: "Adds single import for multiple undefined refs",
@@ -501,13 +543,11 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import pandas as pd",
-      "",
-      "",
       "def func():",
       "    _ = pd",
       "    df = pd.DataFrame",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
   },
   {
     name: "Imports all built-in imports",
@@ -526,12 +566,10 @@ const testCases: TestCase[] = [
       formatDoc({ containsText: "pandas" }),
     ],
     expectedText: [
+      "from xarray import testing as xrt",
       "import numpy as np",
       "import pandas as pd",
       "import xarray as xr",
-      "from xarray import testing as xrt",
-      "",
-      "",
       "def func():",
       "    _ = pd",
       "    arr = np.array()",
@@ -541,7 +579,7 @@ const testCases: TestCase[] = [
       "    other = np.array()",
       "    another = pd.DataFrame()",
     ],
-    expectedSelections: [sel(6, 0)],
+    expectedSelections: [sel(4, 0)],
   },
   {
     name: "Adds auto-imports from settings",
@@ -560,12 +598,10 @@ const testCases: TestCase[] = [
       formatDoc({ containsText: "pandas" }),
     ],
     expectedText: [
+      "from xarray import testing as xrt",
       "import numpy as np",
       "import pandas as pd",
       "import xarray as xr",
-      "from xarray import testing as xrt",
-      "",
-      "",
       "def func():",
       "    _ = pd",
       "    arr = np.array()",
@@ -575,10 +611,13 @@ const testCases: TestCase[] = [
       "    other = np.array()",
       "    another = pd.DataFrame()",
     ],
-    expectedSelections: [sel(6, 0)],
+    expectedSelections: [sel(4, 0)],
   },
   {
     name: "Recurs to fix import order for imports from same source",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings({
       autoImports: [
         {
@@ -608,11 +647,15 @@ const testCases: TestCase[] = [
       "    _ = alpha",
       "    k = beta + 2",
       "    return beta - alpha",
+      "",
     ],
     expectedSelections: [sel(3, 0)],
   },
   {
     name: "Adds import to list",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings({
       autoImports: [
         {
@@ -644,10 +687,14 @@ const testCases: TestCase[] = [
       "    _ = alpha",
       "    k = beta + 2",
       "    return beta - alpha",
+      "",
     ],
   },
   {
     name: "Recurs with multiple imports",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings({
       autoImports: [
         {
@@ -695,11 +742,15 @@ const testCases: TestCase[] = [
       "    np.array(alpha, beta)",
       "    xr.DataArray(alpha, beta)",
       "    return beta - alpha",
+      "",
     ],
     expectedSelections: [sel(5, 0)],
   },
   {
     name: "Works with multiple values for single alias",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings({
       autoImports: [
         {
@@ -730,14 +781,16 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    _ = multi",
+      "",
     ],
     expectedSelections: [sel(4, 0)],
   },
   {
     name: "Handles identical ruff fixes with import block",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
     }),
+    settings: defaultSettings(),
     fileContents: [
       "from p import (",
       "    one,",
@@ -752,17 +805,21 @@ const testCases: TestCase[] = [
       formatDoc({ doesNotContainText: "three" }),
     ],
     expectedText: [
-      "from p import one",
+      "from p import (",
+      "    one,",
+      ")",
       "",
       "",
       "_ = one",
+      "",
     ],
   },
   {
     name: "Handles identical ruff fixes with import statement",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
     }),
+    settings: defaultSettings(),
     fileContents: [
       "from p import one, two, three",
       "",
@@ -777,13 +834,15 @@ const testCases: TestCase[] = [
       "",
       "",
       "_ = one",
+      "",
     ],
   },
   {
     name: "Handles ruff fixes that intersect only at a single character (a range where range.isEmpty() is true)",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
     }),
+    settings: defaultSettings(),
     fileContents: [
       `from __future__ import annotations`,
       ``,
@@ -811,6 +870,9 @@ const testCases: TestCase[] = [
   // Organize import tests
   {
     name: "Organizes imports",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings(),
     fileContents: [
       "import pandas as pd",
@@ -834,13 +896,15 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    _ = pd",
+      "",
     ],
   },
   {
     name: "Doesn't organize imports if organizeImports is false",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       organizeImports: false,
     }),
+    settings: defaultSettings(),
     fileContents: [
       "import pandas as pd",
       "from numbers import two",
@@ -861,15 +925,18 @@ const testCases: TestCase[] = [
       "",
       "from numbers import three, one",
       "",
+      "",
       "def func():",
       "    _ = pd",
+      "",
     ],
   },
   {
     name: "Doesn't organize imports for __init__.py file",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       organizeImports: true,
     }),
+    settings: defaultSettings(),
     initFile: true,
     fileContents: [
       "import pandas as pd",
@@ -891,12 +958,17 @@ const testCases: TestCase[] = [
       "",
       "from numbers import three, one",
       "",
+      "",
       "def func():",
       "    _ = pd",
+      "",
     ],
   },
   {
     name: "Organizes import when adding an import",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings(),
     fileContents: [
       "import pandas as pd",
@@ -921,13 +993,15 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    _ = xr",
+      "",
     ],
   },
   {
     name: "Doesn't organize imports when adding an import if organizeImports is false",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       organizeImports: false,
     }),
+    settings: defaultSettings(),
     fileContents: [
       "import pandas as pd",
       "from numbers import two",
@@ -949,13 +1023,23 @@ const testCases: TestCase[] = [
       "",
       "from numbers import three, one",
       "",
+      "",
       "def func():",
       "    _ = xr",
+      "",
     ],
   },
   // Test format triggering
   {
     name: "Format onSave fixes everything",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+      alwaysImport: [
+        "from france import un",
+        "from france import deux",
+        "from italy import wine",
+      ],
+    }),
     settings: defaultSettings({
       autoImports: [
         {
@@ -966,11 +1050,6 @@ const testCases: TestCase[] = [
           variable: "xyz",
           import: "from alphabet import tail as xyz",
         },
-      ],
-      alwaysImport: [
-        "from france import un",
-        "from france import deux",
-        "from italy import wine",
       ],
     }),
     fileContents: [
@@ -1001,11 +1080,20 @@ const testCases: TestCase[] = [
       `    _ = pd`,
       `    _ = food + de + abc + jkl + xyz`,
       `    _ = np`,
+      ``,
     ],
     expectedSelections: [sel(1, 0)],
   },
   {
     name: "Format with command fixes everything",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+      alwaysImport: [
+        "from france import un",
+        "from france import deux",
+        "from italy import wine",
+      ],
+    }),
     settings: defaultSettings({
       autoImports: [
         {
@@ -1016,11 +1104,6 @@ const testCases: TestCase[] = [
           variable: "xyz",
           import: "from alphabet import tail as xyz",
         },
-      ],
-      alwaysImport: [
-        "from france import un",
-        "from france import deux",
-        "from italy import wine",
       ],
     }),
     fileContents: [
@@ -1049,11 +1132,15 @@ const testCases: TestCase[] = [
       `    _ = pd`,
       `    _ = food + de + abc + jkl + xyz`,
       `    _ = np`,
+      ``,
     ],
     expectedSelections: [sel(1, 0)],
   },
   {
     name: "Formats onPaste",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings({
       onTypeTriggerCharacters: "q",
     }),
@@ -1141,6 +1228,15 @@ const testCases: TestCase[] = [
   },
   {
     name: "Formats onType does not fix everything",
+    // This config will not be applied since onType formatting
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+      alwaysImport: [
+        "from france import un",
+        "from france import deux",
+        "from italy import wine",
+      ],
+    }),
     settings: defaultSettings({
       autoImports: [
         {
@@ -1151,11 +1247,6 @@ const testCases: TestCase[] = [
           variable: "xyz",
           import: "from alphabet import tail as xyz",
         },
-      ],
-      alwaysImport: [
-        "from france import un",
-        "from france import deux",
-        "from italy import wine",
       ],
     }),
     fileContents: [
@@ -1174,9 +1265,6 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       `from alphabet import tail as xyz`,
-      `from france import deux`,
-      `from france import un`,
-      `from italy import wine`,
       `import numpy as np`,
       `from alphabet import abc, fgh, jkl`,
       `from italy import food`,
@@ -1188,7 +1276,7 @@ const testCases: TestCase[] = [
       `    _ = np`,
       `    `,
     ],
-    expectedSelections: [sel(13, 4)],
+    expectedSelections: [sel(10, 4)],
   },
   {
     name: "Formats onType for onTypeTriggerCharacters when not a whitespace character",
@@ -1444,6 +1532,9 @@ const testCases: TestCase[] = [
   // Import spacing tests
   {
     name: "Combines new and existing import statements",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings({
       autoImports: [
         {
@@ -1469,21 +1560,25 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       `"""docstring"""`,
+      "",
       "from numbers import one, trois as three, two",
       "",
       "",
       "def func():",
       "    _ = one + three",
+      "",
     ],
   },
   // Always import tests
   {
     name: "adds single alwaysImport",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
       alwaysImport: [
         'from forever import ever',
       ],
     }),
+    settings: defaultSettings(),
     fileContents: [
       `def one():`,
       `    return 1`,
@@ -1503,11 +1598,14 @@ const testCases: TestCase[] = [
     expectedSelections: [sel(3, 0)],
   },
   {
-    name: "doesn't add alwaysImport in __init__.py file",
-    settings: defaultSettings({
+    name: "adds alwaysImport but doesn't organize imports in __init__.py file",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
       alwaysImport: [
         'from forever import ever',
       ],
+    }),
+    settings: defaultSettings({
       autoImports: [
         { variable: "o", import: "import other as o" },
       ],
@@ -1522,20 +1620,25 @@ const testCases: TestCase[] = [
       formatDoc({ containsText: "import other" }),
     ],
     expectedText: [
+      'from forever import ever',
       `import other as o`,
+      ``,
+      ``,
       `def one():`,
       `    return o`,
       ``,
     ],
-    expectedSelections: [sel(1, 0)],
+    expectedSelections: [sel(4, 0)],
   },
   {
     name: "adds single alwaysImport to combined import",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
       alwaysImport: [
         'from forever import ndever',
       ],
     }),
+    settings: defaultSettings(),
     fileContents: [
       `from forever import ever`,
       ``,
@@ -1557,13 +1660,15 @@ const testCases: TestCase[] = [
   },
   {
     name: "adds multiple alwaysImport",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
       alwaysImport: [
         'from forever import ndever',
         'from something import elze',
         'from france import wine',
       ],
     }),
+    settings: defaultSettings(),
     fileContents: [
       `from forever import ever`,
       ``,
@@ -1587,15 +1692,18 @@ const testCases: TestCase[] = [
   },
   {
     name: "works when alwaysImport and autoImports overlap",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+      alwaysImport: [
+        'from forever import ndever',
+      ],
+    }),
     settings: defaultSettings({
       autoImports: [
         {
           import: "from elsewhere import ndever",
           variable: "ndever",
         },
-      ],
-      alwaysImport: [
-        'from forever import ndever',
       ],
     }),
     fileContents: [
@@ -1703,12 +1811,10 @@ const testCases: TestCase[] = [
       }),
     ],
     expectedText: [
+      "from xarray import testing as xrt",
       "import numpy as np",
       "import pandas as pd",
       "import xarray as xr",
-      "from xarray import testing as xrt",
-      "",
-      "",
       "def func():",
       "    _ = pd",
       "    arr = np.array()",
@@ -1718,7 +1824,7 @@ const testCases: TestCase[] = [
       "    other = np.array()",
       "    another = pd.DataFrame()",
     ],
-    expectedSelections: [sel(6, 0)],
+    expectedSelections: [sel(4, 0)],
   },
   {
     name: "Formats notebook onSave",
@@ -1754,12 +1860,13 @@ const testCases: TestCase[] = [
   },
   {
     name: "alwaysImports is ignored for notebooks",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       alwaysImport: [
         "from alw import ays",
         "import numpy as np",
       ],
     }),
+    settings: defaultSettings(),
     notebookContents: [
       {
         kind: 'code',
@@ -1790,9 +1897,10 @@ const testCases: TestCase[] = [
   },
   {
     name: "removeUnusedImports is ignored for notebooks",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
     }),
+    settings: defaultSettings(),
     notebookContents: [
       {
         kind: 'code',
@@ -1974,14 +2082,12 @@ const testCases: TestCase[] = [
     expectedText: [
       "import numpy as np",
       "import pandas as pd",
-      "",
-      "",
       "def func():",
       "    _ = np",
       "    _ = pd",
       "",
     ],
-    expectedSelections: [sel(4, 0)],
+    expectedSelections: [sel(2, 0)],
   },
   {
     name: "Disregards markdown cells",
@@ -2079,9 +2185,10 @@ const testCases: TestCase[] = [
   // Remove unused imports test
   {
     name: "removes unused import",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
     }),
+    settings: defaultSettings(),
     fileContents: [
       `import nunya`,
       ``,
@@ -2093,8 +2200,6 @@ const testCases: TestCase[] = [
       formatDoc({ doesNotContainText: "nunya" }),
     ],
     expectedText: [
-      ``,
-      ``,
       `def one():`,
       `    return 1`,
       ``,
@@ -2102,9 +2207,10 @@ const testCases: TestCase[] = [
   },
   {
     name: "doesn't remove unused import in __init__.py file",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
     }),
+    settings: defaultSettings(),
     initFile: true,
     fileContents: [
       `import nunya`,
@@ -2119,6 +2225,7 @@ const testCases: TestCase[] = [
     expectedText: [
       `import nunya`,
       ``,
+      ``,
       `def one():`,
       `    return 1`,
       ``,
@@ -2126,12 +2233,13 @@ const testCases: TestCase[] = [
   },
   {
     name: "doesn't remove unused alwaysImport",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
       alwaysImport: [
         "import nunya",
       ],
     }),
+    settings: defaultSettings(),
     fileContents: [
       `import nunya`,
       `import other`,
@@ -2154,12 +2262,15 @@ const testCases: TestCase[] = [
   },
   {
     name: "does a little bit of everything",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
       removeUnusedImports: true,
       alwaysImport: [
         "import nunya",
         "import another",
       ],
+    }),
+    settings: defaultSettings({
       autoImports: [
         { variable: "pd", import: "import pandas as pd" },
       ],
@@ -2188,9 +2299,11 @@ const testCases: TestCase[] = [
   },
   {
     name: "handles removing unused imports and sorting imports simultaneously",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
+      organizeImports: true,
     }),
+    settings: defaultSettings(),
     fileContents: [
       `from package import un as one, deux as two`,
       ``,
@@ -2207,7 +2320,7 @@ const testCases: TestCase[] = [
       ``,
       ``,
       `def func():`,
-      `    _=one`,
+      `    _ = one`,
       ``,
     ],
   },
@@ -2226,14 +2339,15 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       `import pandas as pd`,
-      ``,
-      ``,
       `_ = pd`,
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
   },
   {
     name: "fixes spacing in imports",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings({
       autoImports: [
         { variable: "pd", import: "import pandas as pd" },
@@ -2257,6 +2371,7 @@ const testCases: TestCase[] = [
       ``,
       `_ = pd`,
       `_ = np`,
+      ``,
     ],
   },
   // ignoreScheme tests
@@ -2371,6 +2486,9 @@ const testCases: TestCase[] = [
   // Test import block styles
   {
     name: "Converts import block to one line",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings(),
     fileContents: [
       "from typing import (",
@@ -2389,13 +2507,16 @@ const testCases: TestCase[] = [
       "",
       "def func() -> Any:",
       "    pass",
+      "",
     ],
   },
   {
     name: "Converts import block with trailing comma to one line",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
       removeUnusedImports: true,
     }),
+    settings: defaultSettings(),
     fileContents: [
       "from typing import (",
       "    Any,",
@@ -2413,13 +2534,16 @@ const testCases: TestCase[] = [
       "",
       "def func() -> Any:",
       "    pass",
+      "",
     ],
   },
   {
     name: "Removal of import in import block with no trailing comma gets condensed to one line",
-    settings: defaultSettings({
+    tomlConfig: simpleTomlConfig({
       removeUnusedImports: true,
+      organizeImports: true,
     }),
+    settings: defaultSettings(),
     fileContents: [
       "from typing import (",
       "    Any,",
@@ -2439,10 +2563,14 @@ const testCases: TestCase[] = [
       "",
       "def func(d: Optional[str]) -> Any:",
       "    pass",
+      "",
     ],
   },
   {
     name: "Removal of import in import block with trailing comma gets condensed to one line",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings(),
     fileContents: [
       "from typing import (",
@@ -2462,10 +2590,14 @@ const testCases: TestCase[] = [
       "",
       "def func(d: Optional[str]) -> Any:",
       "    pass",
+      "",
     ],
   },
   {
     name: "Really long import line gets converted to multi-line",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings(),
     fileContents: [
       "from typing import Another, Any, Basically, Dict, Finally, Optional, Other, Donzo",
@@ -2491,10 +2623,14 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    pass",
+      "",
     ],
   },
   {
     name: "Really long import block gets comma added",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings(),
     fileContents: [
       `from typing import (`,
@@ -2510,6 +2646,7 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    pass",
+      "",
     ],
     userInteractions: [
       formatDoc({ containsText: "Other," }),
@@ -2529,6 +2666,7 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    pass",
+      "",
     ],
   },
   {
@@ -3530,17 +3668,16 @@ const testCases: TestCase[] = [
       "%magic command",
       "import pandas as pd",
       "",
-      "",
       "def func():",
       "    _ = pd",
     ],
-    expectedSelections: [sel(3, 0)],
     userInteractions: [
       formatDoc({
         notebook: true,
         containsText: "pandas",
       }),
     ],
+    expectedSelections: [sel(2, 0)],
   },
   {
     name: "Handles magic commands in previous cell",
@@ -3578,12 +3715,11 @@ const testCases: TestCase[] = [
     expectedText: [
       "import numpy as np",
       "",
-      "",
       "def func():",
       "    _ = pd",
       "    _ = np",
     ],
-    expectedSelections: [sel(2, 0)],
+    expectedSelections: [sel(1, 0)],
     userInteractions: [
       cmd('notebook.focusNextEditor'),
       formatDoc({
@@ -3631,7 +3767,6 @@ const testCases: TestCase[] = [
       "%magic other",
       "import numpy as np",
       "",
-      "",
       "def func():",
       "    _ = pd",
       "    _ = np",
@@ -3675,13 +3810,11 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import numpy as np",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
     startupDir: [
       {
         name: "01-startup.py",
@@ -3730,13 +3863,11 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import numpy as np",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
     startupDir: [
       {
         name: "01-startup.py",
@@ -3775,11 +3906,9 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import pandas as pd",
-      "",
-      "",
       "_ = pd",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
     userInteractions: [
       formatDoc({
         notebook: true,
@@ -3817,13 +3946,11 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import xarray as xr",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
     startupDir: [
       {
         name: "01-startup.py",
@@ -3870,12 +3997,10 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import pandas as pd",
-      "",
-      "",
       "_ = np",
       "_ = pd",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
     startupDir: [
       {
         name: "01-startup.py",
@@ -3923,13 +4048,11 @@ const testCases: TestCase[] = [
     expectedText: [
       "import pandas as pd",
       "import xarray as xr",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(4, 0)],
+    expectedSelections: [sel(2, 0)],
     startupDir: [
       {
         name: "01-startup.txt",
@@ -3982,13 +4105,11 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import xarray as xr",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
     startupDir: [
       {
         name: "01-startup.py",
@@ -4055,13 +4176,11 @@ const testCases: TestCase[] = [
     expectedText: [
       "import numpy as np",
       "import pandas as pd",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(4, 0)],
+    expectedSelections: [sel(2, 0)],
     userInteractions: [
       formatDoc({
         notebook: true,
@@ -4103,13 +4222,11 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import xarray as xr",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
     userInteractions: [
       formatDoc({
         notebook: true,
@@ -4150,13 +4267,11 @@ const testCases: TestCase[] = [
       "import numpy as np",
       "import pandas as pd",
       "import xarray as xr",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(5, 0)],
+    expectedSelections: [sel(3, 0)],
     userInteractions: [
       formatDoc({
         notebook: true,
@@ -4206,13 +4321,11 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       "import numpy as np",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(3, 0)],
+    expectedSelections: [sel(1, 0)],
     userInteractions: [
       formatDoc({
         notebook: true,
@@ -4259,13 +4372,11 @@ const testCases: TestCase[] = [
     expectedText: [
       "import numpy as np",
       "import xarray as xr",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(4, 0)],
+    expectedSelections: [sel(2, 0)],
     userInteractions: [
       formatDoc({
         notebook: true,
@@ -4319,13 +4430,11 @@ const testCases: TestCase[] = [
     expectedText: [
       "import numpy as np",
       "import pandas as pd",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(4, 0)],
+    expectedSelections: [sel(2, 0)],
     userInteractions: [
       formatDoc({
         notebook: true,
@@ -4402,16 +4511,58 @@ const testCases: TestCase[] = [
     expectedText: [
       "import pandas as pd",
       "import xarray as xr",
-      "",
-      "",
       "_ = np",
       "_ = xr",
       "_ = pd",
     ],
-    expectedSelections: [sel(4, 0)],
+    expectedSelections: [sel(2, 0)],
   },
   {
     name: "jupyter runStartupCommands can have magic commands",
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+        {
+          variable: "np",
+          import: "import numpy as np",
+        },
+      ],
+      jupyterStartupBlock: [
+        "%abra cadabra",
+        "import pandas as pd",
+        "%alakazam",
+      ],
+    }),
+    notebookContents: [
+      {
+        contents: [
+          "_ = np",
+          "_ = pd",
+        ],
+        kind: 'code',
+      },
+    ],
+    expectedText: [
+      "import numpy as np",
+      "_ = np",
+      "_ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
+    userInteractions: [
+      formatDoc({
+        notebook: true,
+        containsText: "numpy",
+      }),
+    ],
+  },
+  {
+    name: "jupyter runStartupCommands can have magic commands (with organizeImports)",
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
     settings: defaultSettings({
       autoImports: [
         {
@@ -4444,6 +4595,7 @@ const testCases: TestCase[] = [
       "",
       "_ = np",
       "_ = pd",
+      "",
     ],
     expectedSelections: [sel(3, 0)],
     userInteractions: [
