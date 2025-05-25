@@ -4,6 +4,7 @@ import { Diagnostic, Workspace } from '@astral-sh/ruff-wasm-nodejs';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import { parse as tomlParse } from 'toml';
+import { generateAmbiguousEdits } from './diff-edits';
 import { disjointEdits } from './range-merge';
 
 export enum RuffCode {
@@ -371,12 +372,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       return allEdits.at(0);
     }
 
-    // Otherwise, replace the entire document, as vscode expects all TextEdit
-    // objects to reference the original document's positions (not incremental).
-    return [{
-      range: new vscode.Range(0, 0, document.lineCount, 0),
-      newText: this.pushMagicCommands(text, magicConversions),
-    }];
+    return generateAmbiguousEdits(document, this.pushMagicCommands(text, magicConversions));
   }
 
   private getTomlConfig(document: vscode.TextDocument): [RuffConfig | undefined, boolean] {

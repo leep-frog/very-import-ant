@@ -4786,6 +4786,77 @@ const testCases: TestCase[] = [
     ],
     expectedSelections: [sel(1, 0)],
   },
+  // Cursor position tests
+  {
+    name: "cursor moves to a reasonable spot",
+    runSolo: true,
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "three",
+          import: "from numbers import three",
+        },
+      ],
+    }),
+    fileContents: [
+      "",
+      "from numbers import one, two",
+      "",
+      "def func():",
+      "    _ = one + two + three",
+    ],
+    selections: [sel(1, 7)],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "from numbers import one, three, two",
+      "",
+      "",
+      "def func():",
+      "    _ = one + two + three",
+      "",
+    ],
+    expectedSelections: [sel(0, 7)],
+  },
+  {
+    name: "cursor moves to a reasonable spot",
+    runSolo: true,
+    tomlConfig: simpleTomlConfig({
+      organizeImports: true,
+    }),
+    settings: defaultSettings({
+      autoImports: [
+        {
+          variable: "three",
+          import: "from numbers import three",
+        },
+      ],
+    }),
+    fileContents: [
+      "",
+      "from numbers import one, two",
+      "",
+      "def func():",
+      "    _ = one + two + three",
+    ],
+    selections: [sel(1, 26)],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "from numbers import one, three, two",
+      "",
+      "",
+      "def func():",
+      "    _ = one + two + three",
+      "",
+    ],
+    expectedSelections: [sel(0, 33)],
+  },
   /* Useful for commenting out tests. */
 ];
 
