@@ -265,13 +265,14 @@ function simpleTomlConfig(props: SimpleTomlConfigProps): TomlConfig {
 
 
 
-function tomlTestCase(name: string, filepath: string): TestCase {
+function tomlTestCase(name: string, filepath: string, toolRuffSection?: boolean): TestCase {
   return {
     name: name,
     settings: defaultSettings(),
     tomlConfig: {
       path: filepath,
       contents: [
+        toolRuffSection ? "[tool.ruff]" : "",
         `indent-width = 1`,
         `select = ["UP004"]`,
       ],
@@ -4638,6 +4639,34 @@ const testCases: TestCase[] = [
     ],
   },
   {
+    name: "handles invalid toml in pyproject.toml",
+    settings: defaultSettings(),
+    tomlConfig: {
+      path: startingFile("pyproject.toml"),
+      contents: [
+        `[irrelevantSection`,
+      ],
+    },
+    fileContents: [
+      'def func():',
+      '    _ = pd',
+      '    _ = np',
+    ],
+    expectedText: [
+      'def func():',
+      '    _ = pd',
+      '    _ = np',
+    ],
+    errorMessage: {
+      expectedMessages: [
+        "Failed to parse toml file: SyntaxError: Expected \".\", \"]\", [ \\t] or [A-Za-z0-9_\\-] but end of input found.",
+      ],
+    },
+    userInteractions: [
+      formatDoc(),
+    ],
+  },
+  {
     name: "[toml] applies formatting settings",
     settings: defaultSettings(),
     tomlConfig: {
@@ -4695,8 +4724,33 @@ const testCases: TestCase[] = [
   },
   tomlTestCase("[toml] applies formatting and check fixes", startingFile("ruff.toml")),
   tomlTestCase("[toml] works for .ruff.toml file", startingFile(".ruff.toml")),
+  tomlTestCase("[toml] works for pyproject.toml file", startingFile("pyproject.toml"), true),
   tomlTestCase("[toml] works when in parent directory", startingFile("..", "ruff.toml")),
   tomlTestCase("[toml] works when .ruff.toml is in parent directory", startingFile("..", ".ruff.toml")),
+  tomlTestCase("[toml] works when pyproject.toml is in parent directory", startingFile("..", "pyproject.toml"), true),
+  {
+    name: "[toml] ignores pyproject.toml when no tool.ruff section",
+    settings: defaultSettings(),
+    tomlConfig: {
+      path: startingFile("pyproject.toml"),
+      contents: [
+        //"tool.ruff]",
+        `indent-width = 1`,
+        `select = ["UP004"]`,
+      ],
+    },
+    fileContents: [
+      `class Hello(object):`,
+      `    pass`,
+    ],
+    expectedText: [
+      `class Hello(object):`,
+      `    pass`,
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+  },
   // ruffFormatting.enable tests
   {
     name: "ruff formats when ruffFormatting.enable is true",
@@ -4789,7 +4843,6 @@ const testCases: TestCase[] = [
   // Cursor position tests
   {
     name: "cursor moves to a reasonable spot",
-    runSolo: true,
     tomlConfig: simpleTomlConfig({
       organizeImports: true,
     }),
@@ -4824,7 +4877,6 @@ const testCases: TestCase[] = [
   },
   {
     name: "cursor moves to a reasonable spot",
-    runSolo: true,
     tomlConfig: simpleTomlConfig({
       organizeImports: true,
     }),
@@ -4872,7 +4924,6 @@ suite('Extension Test Suite', () => {
       console.log(`========= Starting test: ${tc.name}`);
 
       // Setup fake startup directory
-      // TODO: Tests when HOME and USERPROFILE are null
 
       if (tc.noHome) {
         delete process.env.HOME;

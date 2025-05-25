@@ -22,6 +22,7 @@ function getStartupDir(): string | undefined {
 }
 
 const NOTEBOOK_SCHEME = "vscode-notebook-cell";
+const PYPROJECT_TOML = "pyproject.toml";
 
 const ALL_SUPPORTED_SCHEMES = [
   "file",
@@ -382,12 +383,21 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     // See https://docs.astral.sh/ruff/configuration/#config-file-discovery
     for (let curPath = document.uri.fsPath; path.dirname(curPath) !== curPath; curPath = path.dirname(curPath)) {
-      for (const tomlBasename of ["ruff.toml", ".ruff.toml"]) {
-        // TODO: Add support for pyproject.toml
+      for (const tomlBasename of ["ruff.toml", ".ruff.toml", PYPROJECT_TOML]) {
         const tomlPath = path.join(path.dirname(curPath), tomlBasename);
         if (existsSync(tomlPath)) {
           this.outputChannel.log(`Found toml config at: ${tomlPath}`);
-          return this.tomlParse(readFileSync(tomlPath, "utf-8"));
+          const [parsedToml, ok] = this.tomlParse(readFileSync(tomlPath, "utf-8"));
+          if (tomlBasename !== PYPROJECT_TOML || !ok) {
+            return [parsedToml, ok];
+          }
+
+          // If here, then we have a pyproject.toml
+          if (!!(parsedToml?.tool?.ruff)) {
+            // If pyproject.toml has the ruff section then use it; otherwise continue
+            // looking for files.
+            return [parsedToml.tool.ruff, ok];
+          }
         }
       }
     }
@@ -839,6 +849,9 @@ interface RuffConfig {
   ignore?: string[];
   format?: FormatConfig;
   'line-length'?: number;
+
+  // Only needed for pyproject.toml
+  tool?: any;
 }
 
 interface LintConfig {
