@@ -2,7 +2,7 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "icon": "logo.png",
   "publisher": "groogle",
   "license": "MIT",
@@ -51,6 +51,19 @@
           "default": false,
           "description": "Whether or not to run the full ruff formatter on files. If false, only the auto-imports will be added.",
           "type": "boolean"
+        },
+        "very-import-ant.ruffFormatting.tomlFilenames": {
+          "description": "Base filenames (no paths) to be considered as ruff configuration files. If pyproject.toml is included, then that will require a `tool.ruff` section to be present in the file. This is only relevant when `very-import-ant.ruffFormatting.enable` is set to true.",
+          "type": "array",
+          "default": [
+            "pyproject.toml",
+            "ruff.toml",
+            ".ruff.toml"
+          ],
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
         },
         "very-import-ant.ignoreSchemes": {
           "description": "The list of VS Code document schemes that will *not* be formatted by this extension.",

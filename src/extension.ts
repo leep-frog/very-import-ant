@@ -103,6 +103,7 @@ interface VeryImportantSettings {
   autoImports: Map<string, string[]>;
   reloadableRegistrations: vscode.Disposable[];
   enableRuffFormatting: boolean;
+  tomlFilenames: string[];
 
   // Settings from other extensions
   jupyterStartupBlock?: string;
@@ -214,6 +215,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       autoImports: autoImportMap,
       reloadableRegistrations: newRegistrations,
       enableRuffFormatting: config.get<boolean>("ruffFormatting.enable", false),
+      tomlFilenames: config.get<string[]>("ruffFormatting.tomlFilenames", ["ruff.toml", ".ruff.toml", PYPROJECT_TOML]),
 
       jupyterStartupBlock: this.validPythonCode({ isInitFile: false, isNotebook: false }, jupyterStartupBlock, "jupyter.runStartupCommands") ? jupyterStartupBlock : undefined,
     };
@@ -383,7 +385,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
 
     // See https://docs.astral.sh/ruff/configuration/#config-file-discovery
     for (let curPath = document.uri.fsPath; path.dirname(curPath) !== curPath; curPath = path.dirname(curPath)) {
-      for (const tomlBasename of ["ruff.toml", ".ruff.toml", PYPROJECT_TOML]) {
+      for (const tomlBasename of this.settings.tomlFilenames) {
         const tomlPath = path.join(path.dirname(curPath), tomlBasename);
         if (existsSync(tomlPath)) {
           this.outputChannel.log(`Found toml config at: ${tomlPath}`);

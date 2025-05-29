@@ -141,6 +141,7 @@ interface VeryImportConfig {
   ruffFormatting?: boolean;
   undefinedRuffFormatting?: boolean;
   jupyterStartupBlock?: string | string[];
+  tomlFilenames?: string[];
 }
 
 function defaultSettings(config?: VeryImportConfig) {
@@ -163,6 +164,13 @@ function defaultSettings(config?: VeryImportConfig) {
     opts = {
       ...opts,
       "jupyter.runStartupCommands": config.jupyterStartupBlock,
+    };
+  }
+
+  if (config?.tomlFilenames) {
+    opts = {
+      ...opts,
+      "very-import-ant.ruffFormatting.tomlFilenames": config.tomlFilenames,
     };
   }
 
@@ -214,6 +222,7 @@ interface TomlConfig {
 }
 
 interface SimpleTomlConfigProps {
+  name?: string;
   removeUnusedImports?: boolean;
   alwaysImport?: string[];
   organizeImports?: boolean;
@@ -253,7 +262,7 @@ function simpleTomlConfig(props: SimpleTomlConfigProps): TomlConfig {
   }
 
   return {
-    path: startingFile("ruff.toml"),
+    path: startingFile(props.name ?? "ruff.toml"),
     contents: [
       ...otherLines,
       ``,
@@ -265,10 +274,12 @@ function simpleTomlConfig(props: SimpleTomlConfigProps): TomlConfig {
 
 
 
-function tomlTestCase(name: string, filepath: string, toolRuffSection?: boolean): TestCase {
+function tomlTestCase(name: string, filepath: string, toolRuffSection?: boolean, tomlFilenames?: string[]): TestCase {
   return {
     name: name,
-    settings: defaultSettings(),
+    settings: defaultSettings({
+      tomlFilenames,
+    }),
     tomlConfig: {
       path: filepath,
       contents: [
@@ -4722,12 +4733,45 @@ const testCases: TestCase[] = [
       }),
     ],
   },
+  // toml filename tests
   tomlTestCase("[toml] applies formatting and check fixes", startingFile("ruff.toml")),
+  tomlTestCase("[toml] works when only ruff file is provided in tomlConfig", startingFile("ruff.toml"), false, ["ruff.toml"]),
   tomlTestCase("[toml] works for .ruff.toml file", startingFile(".ruff.toml")),
   tomlTestCase("[toml] works for pyproject.toml file", startingFile("pyproject.toml"), true),
   tomlTestCase("[toml] works when in parent directory", startingFile("..", "ruff.toml")),
   tomlTestCase("[toml] works when .ruff.toml is in parent directory", startingFile("..", ".ruff.toml")),
   tomlTestCase("[toml] works when pyproject.toml is in parent directory", startingFile("..", "pyproject.toml"), true),
+  tomlTestCase("[toml] works for other toml filename", startingFile("bloop.toml"), false, ["bloop.toml"]),
+  {
+    name: "no ruff formatting when ruff file name is not in tomlFilenames",
+    tomlConfig: simpleTomlConfig({
+      name: "ruff.toml",
+      removeUnusedImports: true,
+    }),
+    settings: defaultSettings({
+      ruffFormatting: true,
+      tomlFilenames: [".ruff.toml"],
+      autoImports: [
+        {
+          variable: "pd",
+          import: "import pandas as pd",
+        },
+      ],
+    }),
+    fileContents: [
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "import pandas as pd",
+      "def func():",
+      "    _ = pd",
+    ],
+    expectedSelections: [sel(1, 0)],
+  },
   {
     name: "[toml] ignores pyproject.toml when no tool.ruff section",
     settings: defaultSettings(),
