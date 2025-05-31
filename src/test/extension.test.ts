@@ -136,7 +136,8 @@ interface VeryImportConfig {
   autoImports?: {
     variable: string;
     import: string;
-  }[],
+  }[];
+  organizeImports?: boolean;
   ignoreSchemes?: string[];
   ruffFormatting?: boolean;
   undefinedRuffFormatting?: boolean;
@@ -183,6 +184,7 @@ function defaultSettings(config?: VeryImportConfig) {
     },
     "files.eol": "\n",
     "very-import-ant.format.enable": config?.enabled ?? true,
+    "very-import-ant.organizeImports": config?.organizeImports,
     "very-import-ant.ruffFormatting.enable": config?.undefinedRuffFormatting ? undefined : (config?.ruffFormatting ?? true),
     "very-import-ant.ignoreSchemes": config?.ignoreSchemes ?? [],
     "very-import-ant.onTypeTriggerCharacters": config?.onTypeTriggerCharacters,
@@ -630,10 +632,8 @@ const testCases: TestCase[] = [
   },
   {
     name: "Recurs to fix import order for imports from same source",
-    tomlConfig: simpleTomlConfig({
-      organizeImports: true,
-    }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         {
           variable: "alpha",
@@ -662,16 +662,13 @@ const testCases: TestCase[] = [
       "    _ = alpha",
       "    k = beta + 2",
       "    return beta - alpha",
-      "",
     ],
     expectedSelections: [sel(3, 0)],
   },
   {
     name: "Adds import to list",
-    tomlConfig: simpleTomlConfig({
-      organizeImports: true,
-    }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         {
           variable: "alpha",
@@ -702,15 +699,12 @@ const testCases: TestCase[] = [
       "    _ = alpha",
       "    k = beta + 2",
       "    return beta - alpha",
-      "",
     ],
   },
   {
     name: "Recurs with multiple imports",
-    tomlConfig: simpleTomlConfig({
-      organizeImports: true,
-    }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         {
           variable: "pd",
@@ -757,16 +751,13 @@ const testCases: TestCase[] = [
       "    np.array(alpha, beta)",
       "    xr.DataArray(alpha, beta)",
       "    return beta - alpha",
-      "",
     ],
     expectedSelections: [sel(5, 0)],
   },
   {
     name: "Works with multiple values for single alias",
-    tomlConfig: simpleTomlConfig({
-      organizeImports: true,
-    }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         {
           variable: "multi",
@@ -796,7 +787,6 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    _ = multi",
-      "",
     ],
     expectedSelections: [sel(4, 0)],
   },
@@ -884,11 +874,42 @@ const testCases: TestCase[] = [
   },
   // Organize import tests
   {
-    name: "Organizes imports",
+    name: "Organizes imports with setting",
+    settings: defaultSettings({
+      organizeImports: true,
+    }),
+    fileContents: [
+      "import pandas as pd",
+      "from numbers import two",
+      "import numpy as np",
+      "",
+      "from numbers import three, one",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+    userInteractions: [
+      formatDoc(),
+    ],
+    expectedText: [
+      "from numbers import one, three, two",
+      "",
+      "import numpy as np",
+      "import pandas as pd",
+      "",
+      "",
+      "def func():",
+      "    _ = pd",
+    ],
+  },
+  {
+    name: "Organizes imports with toml",
     tomlConfig: simpleTomlConfig({
       organizeImports: true,
     }),
-    settings: defaultSettings(),
+    settings: defaultSettings({
+      organizeImports: false,
+    }),
     fileContents: [
       "import pandas as pd",
       "from numbers import two",
@@ -919,7 +940,9 @@ const testCases: TestCase[] = [
     tomlConfig: simpleTomlConfig({
       organizeImports: false,
     }),
-    settings: defaultSettings(),
+    settings: defaultSettings({
+      organizeImports: false,
+    }),
     fileContents: [
       "import pandas as pd",
       "from numbers import two",
@@ -951,7 +974,9 @@ const testCases: TestCase[] = [
     tomlConfig: simpleTomlConfig({
       organizeImports: true,
     }),
-    settings: defaultSettings(),
+    settings: defaultSettings({
+      organizeImports: true,
+    }),
     initFile: true,
     fileContents: [
       "import pandas as pd",
@@ -981,10 +1006,9 @@ const testCases: TestCase[] = [
   },
   {
     name: "Organizes import when adding an import",
-    tomlConfig: simpleTomlConfig({
+    settings: defaultSettings({
       organizeImports: true,
     }),
-    settings: defaultSettings(),
     fileContents: [
       "import pandas as pd",
       "from numbers import two",
@@ -1008,15 +1032,16 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    _ = xr",
-      "",
     ],
   },
   {
     name: "Doesn't organize imports when adding an import if organizeImports is false",
+    settings: defaultSettings({
+      organizeImports: false,
+    }),
     tomlConfig: simpleTomlConfig({
       organizeImports: false,
     }),
-    settings: defaultSettings(),
     fileContents: [
       "import pandas as pd",
       "from numbers import two",
@@ -1153,10 +1178,8 @@ const testCases: TestCase[] = [
   },
   {
     name: "Formats onPaste",
-    tomlConfig: simpleTomlConfig({
-      organizeImports: true,
-    }),
     settings: defaultSettings({
+      organizeImports: true,
       onTypeTriggerCharacters: "q",
     }),
     fileContents: [
@@ -1253,6 +1276,7 @@ const testCases: TestCase[] = [
       ],
     }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         {
           variable: "np",
@@ -1427,6 +1451,7 @@ const testCases: TestCase[] = [
   {
     name: "Does not format onType if not a trigger character",
     settings: defaultSettings({
+      organizeImports: true,
       onTypeTriggerCharacters: "\ndp",
     }),
     fileContents: [
@@ -1547,10 +1572,8 @@ const testCases: TestCase[] = [
   // Import spacing tests
   {
     name: "Combines new and existing import statements",
-    tomlConfig: simpleTomlConfig({
-      organizeImports: true,
-    }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         {
           variable: "one",
@@ -1575,13 +1598,11 @@ const testCases: TestCase[] = [
     ],
     expectedText: [
       `"""docstring"""`,
-      "",
       "from numbers import one, trois as three, two",
       "",
       "",
       "def func():",
       "    _ = one + three",
-      "",
     ],
   },
   // Always import tests
@@ -1714,6 +1735,7 @@ const testCases: TestCase[] = [
       ],
     }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         {
           import: "from elsewhere import ndever",
@@ -2286,6 +2308,7 @@ const testCases: TestCase[] = [
       ],
     }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         { variable: "pd", import: "import pandas as pd" },
       ],
@@ -2360,10 +2383,8 @@ const testCases: TestCase[] = [
   },
   {
     name: "fixes spacing in imports",
-    tomlConfig: simpleTomlConfig({
-      organizeImports: true,
-    }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         { variable: "pd", import: "import pandas as pd" },
       ],
@@ -2386,7 +2407,6 @@ const testCases: TestCase[] = [
       ``,
       `_ = pd`,
       `_ = np`,
-      ``,
     ],
   },
   // ignoreScheme tests
@@ -2501,10 +2521,9 @@ const testCases: TestCase[] = [
   // Test import block styles
   {
     name: "Converts import block to one line",
-    tomlConfig: simpleTomlConfig({
+    settings: defaultSettings({
       organizeImports: true,
     }),
-    settings: defaultSettings(),
     fileContents: [
       "from typing import (",
       "    Any",
@@ -2522,7 +2541,6 @@ const testCases: TestCase[] = [
       "",
       "def func() -> Any:",
       "    pass",
-      "",
     ],
   },
   {
@@ -2583,10 +2601,9 @@ const testCases: TestCase[] = [
   },
   {
     name: "Removal of import in import block with trailing comma gets condensed to one line",
-    tomlConfig: simpleTomlConfig({
+    settings: defaultSettings({
       organizeImports: true,
     }),
-    settings: defaultSettings(),
     fileContents: [
       "from typing import (",
       "    Any,",
@@ -2605,15 +2622,13 @@ const testCases: TestCase[] = [
       "",
       "def func(d: Optional[str]) -> Any:",
       "    pass",
-      "",
     ],
   },
   {
     name: "Really long import line gets converted to multi-line",
-    tomlConfig: simpleTomlConfig({
+    settings: defaultSettings({
       organizeImports: true,
     }),
-    settings: defaultSettings(),
     fileContents: [
       "from typing import Another, Any, Basically, Dict, Finally, Optional, Other, Donzo",
       "",
@@ -2638,15 +2653,13 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    pass",
-      "",
     ],
   },
   {
     name: "Really long import block gets comma added",
-    tomlConfig: simpleTomlConfig({
+    settings: defaultSettings({
       organizeImports: true,
     }),
-    settings: defaultSettings(),
     fileContents: [
       `from typing import (`,
       `    Another,`,
@@ -4575,10 +4588,8 @@ const testCases: TestCase[] = [
   },
   {
     name: "jupyter runStartupCommands can have magic commands (with organizeImports)",
-    tomlConfig: simpleTomlConfig({
-      organizeImports: true,
-    }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         {
           variable: "pd",
@@ -4610,7 +4621,6 @@ const testCases: TestCase[] = [
       "",
       "_ = np",
       "_ = pd",
-      "",
     ],
     expectedSelections: [sel(3, 0)],
     userInteractions: [
@@ -4887,10 +4897,8 @@ const testCases: TestCase[] = [
   // Cursor position tests
   {
     name: "cursor moves to a reasonable spot",
-    tomlConfig: simpleTomlConfig({
-      organizeImports: true,
-    }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         {
           variable: "three",
@@ -4915,16 +4923,13 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    _ = one + two + three",
-      "",
     ],
     expectedSelections: [sel(0, 7)],
   },
   {
     name: "cursor moves to a reasonable spot",
-    tomlConfig: simpleTomlConfig({
-      organizeImports: true,
-    }),
     settings: defaultSettings({
+      organizeImports: true,
       autoImports: [
         {
           variable: "three",
@@ -4949,7 +4954,6 @@ const testCases: TestCase[] = [
       "",
       "def func():",
       "    _ = one + two + three",
-      "",
     ],
     expectedSelections: [sel(0, 33)],
   },

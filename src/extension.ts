@@ -104,6 +104,7 @@ interface VeryImportantSettings {
   reloadableRegistrations: vscode.Disposable[];
   enableRuffFormatting: boolean;
   tomlFilenames: string[];
+  organizeImports: boolean;
 
   // Settings from other extensions
   jupyterStartupBlock?: string;
@@ -215,6 +216,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       autoImports: autoImportMap,
       reloadableRegistrations: newRegistrations,
       enableRuffFormatting: config.get<boolean>("ruffFormatting.enable", false),
+      organizeImports: config.get<boolean>("organizeImports", false),
       tomlFilenames: config.get<string[]>("ruffFormatting.tomlFilenames", ["ruff.toml", ".ruff.toml", PYPROJECT_TOML]),
 
       jupyterStartupBlock: this.validPythonCode({ isInitFile: false, isNotebook: false }, jupyterStartupBlock, "jupyter.runStartupCommands") ? jupyterStartupBlock : undefined,
@@ -558,6 +560,7 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       lint: {
         select: [
           RuffCode.MISSING_REQUIRED_IMPORT,
+          ...(this.settings.organizeImports && fullFormat ? [RuffCode.UNSORTED_IMPORTS] : []),
         ],
         isort: {
           'required-imports': importsToAdd,
