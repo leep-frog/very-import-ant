@@ -2,7 +2,7 @@
   "name": "very-import-ant",
   "displayName": "Very Import-ant",
   "description": "",
-  "version": "4.0.3",
+  "version": "4.0.5",
   "icon": "logo.png",
   "publisher": "groogle",
   "license": "MIT",
@@ -50,6 +50,11 @@
         "very-import-ant.ruffFormatting.enable": {
           "default": false,
           "description": "Whether or not to run the full ruff formatter on files. If false, only the auto-imports will be added.",
+          "type": "boolean"
+        },
+        "very-import-ant.organizeImports": {
+          "default": false,
+          "description": "Whether or not to organize imports after auto-adding imports",
           "type": "boolean"
         },
         "very-import-ant.ruffFormatting.tomlFilenames": {
