@@ -167,7 +167,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "@astral-sh/ruff-wasm-nodejs": "^0.12.11",
+    "@astral-sh/ruff-wasm-nodejs": "^0.13.2",
     "@leep-frog/vscode-test-stubber": "^2.0.5",
     "toml": "^3.0.0",
     "ts-node": "^10.9.2"
