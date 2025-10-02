@@ -164,7 +164,7 @@
     "@vscode/test-electron": "^2.5.2",
     "esbuild": "^0.25.9",
     "eslint": "^9.36.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@astral-sh/ruff-wasm-nodejs": "^0.13.2",
