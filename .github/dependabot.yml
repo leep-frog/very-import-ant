@@ -34,3 +34,7 @@ updates:
       - dependency-name: '@types/vscode'
       - dependency-name: '@types/node'
       - dependency-name: 'vscode-languageclient'
+    groups:
+      all-dependencies:
+        patterns:
+          - "*"  # Groups ALL updates into one PR
