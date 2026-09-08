@@ -133,13 +133,13 @@ without *any* interruption to your development flow.
 
 ## Using with Other Formatters
 
-While this extension is technically a formatter extension, it's purpose
+While this extension is technically a formatter extension, its purpose
 is very limited. However, since this formatter use `ruff` under the hood,
 you can enable ruff formatting on your files by adding the following to
 your settings:
 
 ```json
-"very-import-ant.fullRuffFormatting": true
+"very-import-ant.ruffFormatting.enable": true
 ```
 
 This can also be used with other VS Code formatters once [this VS Code

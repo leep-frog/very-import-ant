@@ -319,6 +319,15 @@ class VeryImportantFormatter implements vscode.DocumentFormattingEditProvider, v
       },
     ];
 
+    // We considered delegating this full-format step to the real ruff formatter extension
+    // (charliermarsh.ruff) instead of mimicking it with the bundled ruff-wasm package here,
+    // via the `formatter` arg added to `editor.action.formatDocument.multiple` in
+    // https://github.com/microsoft/vscode/pull/245743. We decided against it:
+    // it requires second extension to be installed, and the delegation itself
+    // is meaningfully more complex (the command formats the active editor directly
+    // rather than returning edits, so it needs its own activation/timing handling)
+    // for a benefit -- avoiding drift between this bundled ruff-wasm version and whatever
+    // ruff version the user's extension runs -- that dependabot already keeps small.
     const ruffFormatFixes: RuffConfig[] = [];
 
     let forceFullTextChange = false;
