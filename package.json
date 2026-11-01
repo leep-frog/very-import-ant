@@ -158,18 +158,18 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.96.0",
-    "@typescript-eslint/eslint-plugin": "^8.71.0",
+    "@typescript-eslint/eslint-plugin": "^8.72.1",
     "@typescript-eslint/parser": "^8.60.1",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",
     "esbuild": "^0.28.2",
-    "eslint": "^10.11.0",
+    "eslint": "^10.13.0",
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@astral-sh/ruff-wasm-nodejs": "^0.16.9",
-    "@leep-frog/vscode-test-stubber": "^2.0.6",
-    "toml": "^5.0.0",
+    "@astral-sh/ruff-wasm-nodejs": "^0.17.3",
+    "@leep-frog/vscode-test-stubber": "^2.0.7",
+    "toml": "^5.0.1",
     "ts-node": "^10.9.2"
   }
 }
